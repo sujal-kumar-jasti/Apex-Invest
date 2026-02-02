@@ -1,0 +1,96 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "16f3822e9cce5a02b0acba019b0b90e1",
+    "entities": [
+      {
+        "tableName": "portfolio",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`symbol` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `buyPrice` REAL NOT NULL, `buyDate` TEXT NOT NULL, `lastUpdated` INTEGER NOT NULL, `currentPrice` REAL NOT NULL, `dailyChange` REAL NOT NULL, PRIMARY KEY(`symbol`))",
+        "fields": [
+          {
+            "fieldPath": "symbol",
+            "columnName": "symbol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "buyPrice",
+            "columnName": "buyPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "buyDate",
+            "columnName": "buyDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentPrice",
+            "columnName": "currentPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dailyChange",
+            "columnName": "dailyChange",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "symbol"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "watchlist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`symbol` TEXT NOT NULL, `lastPrice` REAL NOT NULL, PRIMARY KEY(`symbol`))",
+        "fields": [
+          {
+            "fieldPath": "symbol",
+            "columnName": "symbol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastPrice",
+            "columnName": "lastPrice",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "symbol"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '16f3822e9cce5a02b0acba019b0b90e1')"
+    ]
+  }
+}

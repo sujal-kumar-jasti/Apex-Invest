@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_brand">#9370DB</color>
+    <color name="purple_light">#C7B1E3</color>
+    <color name="purple_dark">#6A5ACD</color>
+
+    <color name="green_gain_light">#1CA823</color>
+    <color name="red_loss_light">#AF1919</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="splash_bg">#FFFFFF</color>
+    <color name="splash_icon_tint">#6750A4</color>
+</resources>

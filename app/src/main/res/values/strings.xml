@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Apex Invest</string>
+<!-- CRITICAL: This is the client ID required for Google Sign-In with Firebase Auth. -->
+    <string name="default_web_client_id">680800719517-l7sgs82gi01uinvlvpf02n9tqfi57mcf.apps.googleusercontent.com</string>
+
+</resources>
