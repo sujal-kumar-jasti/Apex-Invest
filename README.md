@@ -1,119 +1,140 @@
-# Apex-Invest
+Apex Invest
 
-Apex-Invest is an Android application written in Kotlin organized under the package `com.apexinvest.app`. The project is configured with the Gradle Kotlin DSL and follows common Android architecture patterns with separate packages for API, data, database, UI, ViewModel, utilities, and background workers.
+Apex Invest is a comprehensive stock market tracking and portfolio management application built with Kotlin and Jetpack Compose. It leverages Generative AI (Gemini) and Sentiment Analysis (Hugging Face) to provide actionable financial insights, real-time tracking, and market predictions.
 
-## Repository snapshot
+The project is organized under the package com.apexinvest.app and follows modern Android architecture patterns (MVVM), utilizing dedicated microservices for data fetching and analysis.
 
-Observed files and directories:
 
-- Root build and configuration
-  - `build.gradle.kts`
-  - `settings.gradle.kts`
-  - `gradle.properties`
-  - `gradlew`, `gradlew.bat`
-  - `.gitignore`
-- App module (`app`)
-  - `app/build.gradle.kts`
-  - `app/google-services.json` (Firebase configuration file present — review before publishing)
-  - `app/proguard-rules.pro`
-  - `app/src/main/AndroidManifest.xml`
-  - `app/src/main/ic_launcher-playstore.png`
-  - Kotlin source tree: `app/src/main/java/com/apexinvest/app/`
-    - `ApexApplication.kt`
-    - `MainActivity.kt`
-    - Subpackages: `api`, `data`, `db`, `ui`, `util`, `viewmodel`, `worker`, `schemas`
-  - `app/.gitignore`
 
-## Key features (inferred)
 
-- Android app implemented in Kotlin
-- Firebase integration (via `google-services.json`)
-- Uses modern Android architecture patterns (packages indicate use of ViewModel, data, db, worker)
-- ProGuard/R8 configuration present for release builds
 
-## Prerequisites
 
-- Java JDK (11 or later recommended)
-- Android Studio (recommended) or the Android SDK and command-line tools
-- Android SDK build tools and platform(s) required by the project
-- (Optional) Firebase project configuration if you will build with real Firebase features
+Key Features
+AI-Powered Insights
 
-## Getting started
+Gemini AI Integration: Generates 3 actionable stock suggestions which can be directly converted into Buy trades within the portfolio.
 
-1. Clone the repository
+Sentiment Prediction Engine: A custom Python backend hosted on Hugging Face runs text classification on news from Google News. It assigns a sentiment score (-1 to +1) to the portfolio based on recent trends.
 
-```bash
+Portfolio Diagnosis: AI analysis of current holdings to identify risks and opportunities.
+
+Advanced Analytics & Portfolio
+
+Deep Portfolio Analysis
+
+Sector Distribution: Visual bar charts showing exposure across industries.
+
+Asset Weightage: Progress bars indicating the percentage of total capital per stock.
+
+1-Day Simulation: Projects potential portfolio performance based on daily volatility.
+
+Transaction Management: Add trades (Buy/Sell) with specific dates and prices, or link Demat accounts manually.
+
+Background Updates: Uses WorkManager for scheduled tasks and watchlist notifications (4-hour intervals).
+
+Market Explorer
+
+Global & Local Tracking: Separate microservices fetch data for Indian Markets (Nifty 50, Bank Nifty) and US Markets/Commodities.
+
+Top Gainers & News: Dedicated section for top-performing stocks and integrated Google News feeds.
+
+Smart Watchlist: Toggle currency (USD/INR) and enable price alerts.
+
+Technical Architecture
+
+The application is configured with Gradle Kotlin DSL and is structured into clear layers for maintainability.
+
+Tech Stack
+
+Language: Kotlin
+
+UI Framework: Jetpack Compose (Material Design 3)
+
+Backend: Firebase (Authentication, Firestore / Realtime Database)
+
+Microservices: Python (hosted externally) for scraping and ML inference
+
+ML / AI: Google Gemini API, Hugging Face Transformers
+
+Project Structure
+
+The source code is located in app/src/main/java/com/apexinvest/app/:
+
+api/ – Network configurations and Retrofit service definitions
+
+data/ – Repositories and data models
+
+db/ – Local database schemas and storage helpers
+
+ui/ – Jetpack Compose screens and UI components
+
+viewmodel/ – State management using MVVM
+
+worker/ – Background tasks using WorkManager
+
+util/ – Helper functions and extensions
+
+schemas/ – JSON schemas and asset definitions
+
+Prerequisites
+
+Java JDK version 11 or later
+
+Android Studio (recommended)
+
+Firebase project for authentication and database features
+
+Getting Started
+Clone the repository
+
 git clone https://github.com/sujal-kumar-jasti/Apex-Invest.git
+
 cd Apex-Invest
-```
 
-2. Open the project in Android Studio and let it sync Gradle, or build from the command line:
+Configure Firebase
 
-```bash
+The repository currently includes a placeholder or existing google-services.json file.
+
+Important: For security, you must replace app/google-services.json with your own configuration file downloaded from the Firebase Console.
+
+It is highly recommended to add app/google-services.json to your .gitignore file to prevent leaking your private project credentials in the future.
+
+Backend Setup
+
+Ensure the Python microservices are running.
+
+Update the base URLs in the api/ package constants to point to your hosted instances or localhost.
+
+Build and Run
+
+Open the project in Android Studio and sync Gradle files.
+
+Run the application:
+
 ./gradlew assembleDebug
-```
 
-3. Install on a connected device or emulator:
+Install on a connected device
 
-```bash
 ./gradlew installDebug
-```
 
-4. If the app uses Firebase services, verify `app/google-services.json` is configured correctly for your Firebase project. If you intend to keep credentials private, replace the file with a local version and add it to `.gitignore`.
+Contributing
 
-## Common tasks
+Contributions are welcome. Please follow these steps:
 
-- Clean the project:
+Fork the repository.
 
-```bash
-./gradlew clean
-```
+Create a feature branch (feature/your-feature).
 
-- Run unit tests (if any):
+Commit your changes.
 
-```bash
-./gradlew test
-```
+Open a pull request.
 
-## Project structure (summary)
+Please ensure you adhere to the existing package structure (com.apexinvest.app) and Kotlin coding standards.
 
-- `app/src/main/java/com/apexinvest/app/` — application source code
-  - `ApexApplication.kt` — application class
-  - `MainActivity.kt` — main activity
-  - `api/` — network/API-related code
-  - `data/` — repositories, models, and data handling
-  - `db/` — local database helpers / schema
-  - `ui/` — UI screens and components
-  - `viewmodel/` — ViewModel classes
-  - `worker/` — background work (WorkManager)
-  - `util/` — utility functions and helpers
-  - `schemas/` — observed folder (possibly for JSON/schema assets)
-- `app/proguard-rules.pro` — ProGuard/R8 rules
-- `app/google-services.json` — Firebase configuration (present in repo)
+Author
 
-## Notes and recommendations
+J Sujal Kumar
 
-- The repository currently includes `app/google-services.json`. If that file contains project-specific credentials you do not want public, consider removing it from the repo and adding it to `.gitignore`, then provide a setup guide for collaborators to obtain their own copy.
-- Confirm SDK and plugin versions declared in `build.gradle.kts` and `gradle.properties` match the development environment. If you encounter build issues, update Android SDK components or JDK accordingly.
-- If you plan to publish the app to Google Play, review and update ProGuard/R8 rules and the app signing configuration.
+Email: sujalkumarjasti751@gmail.com
 
-## Contributing
-
-Contributions are welcome. Suggested workflow:
-
-1. Fork the repository
-2. Create a feature branch (e.g., `feature/your-feature`)
-3. Implement your changes and add tests where applicable
-4. Open a pull request with a clear description of the change
-
-Follow Kotlin and Android best practices for code style and architecture.
-
-## License
-
-No LICENSE file was observed in the repository snapshot. If you want to publish this project, add a license file such as `LICENSE` with your chosen license (for example, MIT, Apache 2.0, etc.).
-
-## Maintainer / Contact
-
-Repository: https://github.com/sujal-kumar-jasti/Apex-Invest
-
-If you want any changes to the README (add screenshots, badges, or more detailed setup steps), tell me what to include and I will update the file.
+GitHub: https://github.com/sujal-kumar-jasti
