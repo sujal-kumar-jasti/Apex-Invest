@@ -55,6 +55,7 @@ The source code is located in `app/src/main/java/com/apexinvest/app/`:
 
 **J Sujal Kumar**
 - **GitHub:** [@sujal-kumar-jasti](https://github.com/sujal-kumar-jasti)
+- **LinkedIn:** [sujalkumarjasti](https://www.linkedin.com/in/sujalkumarjasti)
 - **Email:** [sujalkumarjasti751@gmail.com](mailto:sujalkumarjasti751@gmail.com)
 
 For installation and setup instructions, please refer to [SETUP.md](SETUP.md).
