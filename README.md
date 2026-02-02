@@ -20,6 +20,9 @@ Since this application is not yet published on the Google Play Store, your Andro
    - If you see an "Unsafe app blocked" warning, tap **More details** and select **Install anyway**.
 
 *Note: This warning appears because the app is a private developer build and not yet verified by the Play Store.*
+
+
+
 The project is organized under the package `com.apexinvest.app` and follows modern Android architecture patterns (MVVM). The entire backend logic, including stock data processing and sentiment analysis models, is hosted on the **Hugging Face Cloud Platform**.
 
 ![Platform: Android](https://img.shields.io/badge/Platform-Android-green)
