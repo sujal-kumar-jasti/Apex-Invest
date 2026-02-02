@@ -1,7 +1,25 @@
 # Apex Invest
 
 **Apex Invest** is a comprehensive stock market tracking and portfolio management application built with **Kotlin** and **Jetpack Compose**. It leverages **Generative AI (Gemini)** and **Sentiment Analysis** to provide actionable financial insights, real-time tracking, and market predictions.
+## Download & Installation
 
+You can download the latest APK directly from the link below:
+
+[Download Apex Invest v1.0 APK](https://github.com/sujal-kumar-jasti/Apex-Invest/releases/download/v1.0.0/ApexInvest-v1.0.apk)
+
+### How to Install
+
+Since this application is not yet published on the Google Play Store, your Android device may flag it as an unknown source. Follow these steps to install:
+
+1. **Download:** Click the link above to save `ApexInvest-v1.0.apk` to your device.
+2. **Open:** Tap the download notification.
+3. **Allow Unknown Sources:**
+   - If prompted, go to **Settings** and enable **"Allow from this source"**.
+   - Return to the installation screen and tap **Install**.
+4. **Play Protect:**
+   - If you see an "Unsafe app blocked" warning, tap **More details** and select **Install anyway**.
+
+*Note: This warning appears because the app is a private developer build and not yet verified by the Play Store.*
 The project is organized under the package `com.apexinvest.app` and follows modern Android architecture patterns (MVVM). The entire backend logic, including stock data processing and sentiment analysis models, is hosted on the **Hugging Face Cloud Platform**.
 
 ![Platform: Android](https://img.shields.io/badge/Platform-Android-green)
