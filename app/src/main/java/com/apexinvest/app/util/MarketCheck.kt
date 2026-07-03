@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-<<<<<<< HEAD
 import android.graphics.BitmapFactory
 import android.text.Spannable
 import android.text.SpannableStringBuilder
@@ -19,17 +18,6 @@ import androidx.core.net.toUri
 import com.apexinvest.app.ApexApplication
 import com.apexinvest.app.R
 import com.apexinvest.app.data.NotificationEntity
-=======
-import android.graphics.Color
-import android.os.Build
-import android.text.Spannable
-import android.text.SpannableStringBuilder
-import android.text.style.ForegroundColorSpan
-import android.util.Log
-import androidx.core.app.NotificationCompat
-import com.apexinvest.app.MainActivity
-import com.apexinvest.app.R
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 import com.apexinvest.app.data.PortfolioRepository
 import kotlinx.coroutines.flow.first
 import java.util.Locale
@@ -37,23 +25,16 @@ import kotlin.math.abs
 
 object MarketCheck {
 
-<<<<<<< HEAD
     suspend fun checkAndNotify(context: Context, repository: PortfolioRepository, isTestMode: Boolean = false) {
         try {
             val prefs = context.getSharedPreferences("apex_prefs", Context.MODE_PRIVATE)
             if (!prefs.getBoolean("notifications_enabled", true) && !isTestMode) return
 
             Log.d("MarketCheck", "Starting Check with Trending Icons")
-=======
-    suspend fun checkAndNotify(context: Context, repository: PortfolioRepository, isTestMode: Boolean) {
-        try {
-            Log.d("MarketCheck", "Starting Check. Force Mode: $isTestMode")
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 
             val watchlist = repository.getLocalWatchlist().first()
             if (watchlist.isEmpty()) return
 
-<<<<<<< HEAD
             val app = context.applicationContext as? ApexApplication
             val notificationRepo = app?.container?.notificationRepository
             val notificationService = app?.container?.financialNotificationService
@@ -177,55 +158,12 @@ object MarketCheck {
                                 notificationService?.sendHealthAlert(stock.symbol, "Healthy/Neutral", "Distress")
                             }
                         }
-=======
-            val fullListBuilder = SpannableStringBuilder()
-
-            // Loop through ALL stocks (No filtering)
-            for (stock in watchlist) {
-                try {
-                    val detailResult = repository.getFullStockDetails(stock.symbol, "1D")
-
-                    detailResult.getOrNull()?.let { detail ->
-                        val price = detail.price
-                        val change = detail.changePercent
-
-                        // --- CHANGED: REMOVED 2% LIMIT ---
-                        // We now add every stock to the notification list
-
-                        val isUp = change >= 0
-                        val arrow = if (isUp) "▲" else "▼"
-                        val color = if (isUp) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
-
-                        // Format: "AAPL: $150.23 "
-                        val prefix = String.format(Locale.US, "%s: $%.2f ", stock.symbol, price)
-                        fullListBuilder.append(prefix)
-
-                        // Format: "(▲ 1.25%)"
-                        val coloredPart = String.format(Locale.US, "(%s %.2f%%)", arrow, abs(change))
-                        val start = fullListBuilder.length
-                        fullListBuilder.append(coloredPart)
-                        val end = fullListBuilder.length
-
-                        // Color the percentage
-                        fullListBuilder.setSpan(
-                            ForegroundColorSpan(color),
-                            start,
-                            end,
-                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-
-                        fullListBuilder.append("\n")
-
-                        // Update DB
-                        repository.addWatchlistStock(stock.symbol)
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
                     }
                 } catch (e: Exception) {
                     Log.e("MarketCheck", "Error ${stock.symbol}", e)
                 }
             }
 
-<<<<<<< HEAD
             if (linesAdded > 0) {
                 val summaryBuilder = SpannableStringBuilder()
 
@@ -270,15 +208,6 @@ object MarketCheck {
                 } else if (avgChange < -2.0) {
                     notificationService?.sendMilestoneAlert("is facing some market headwinds today.")
                 }
-=======
-            if (fullListBuilder.isNotEmpty()) {
-                // Remove trailing newline
-                fullListBuilder.delete(fullListBuilder.length - 1, fullListBuilder.length)
-
-                // Generic Title since it's a periodic status update
-                val title = "Market Status (${watchlist.size} Stocks)"
-                showNotification(context, title, fullListBuilder)
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
             }
 
         } catch (e: Exception) {
@@ -286,7 +215,6 @@ object MarketCheck {
         }
     }
 
-<<<<<<< HEAD
     private fun createIconSpan(context: Context, drawableResId: Int, colorInt: Int): ImageSpan? {
         val drawable = ContextCompat.getDrawable(context, drawableResId)?.mutate() ?: return null
         drawable.setTint(colorInt)
@@ -335,37 +263,6 @@ object MarketCheck {
             .setColor("#673AB7".toColorInt())
             .setContentIntent(mainPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-=======
-    private fun showNotification(context: Context, title: String, content: CharSequence) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "apex_alerts_v2"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Stock Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
-                enableLights(true)
-                enableVibration(true)
-            }
-            manager.createNotificationChannel(channel)
-        }
-
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("OPEN_WATCHLIST", true)
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-            .setSmallIcon(R.drawable.ic_trending_up)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
             .setAutoCancel(true)
             .build()
 

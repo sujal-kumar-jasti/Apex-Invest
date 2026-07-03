@@ -2,7 +2,6 @@ package com.apexinvest.app.data.model
 
 import com.google.gson.annotations.SerializedName
 
-<<<<<<< HEAD
 // 1. News Item
 data class StockNews(
     val title: String?,
@@ -36,37 +35,4 @@ data class CommodityDto(
     val currency: String?,
     val price: Double?,
     @SerializedName("changePercent") val changePercent: Double?
-=======
-// 1. News Item (From /news/{symbol})
-data class StockNews(
-    val title: String,
-    val publisher: String,
-    val link: String,
-    val published: String
-)
-
-// 2. Search Result (From /search?q=...)
-data class SearchResultDto(
-    val symbol: String,
-    val name: String,
-    val exchange: String,
-    val type: String
-)
-
-// 3. Trending Stock (From /market/trending)
-data class TrendingStockDto(
-    val symbol: String,
-    val price: Double,
-    @SerializedName("changePercent") val changePercent: Double
-)
-
-data class CommodityDto(
-    val symbol: String,
-    val name: String,
-    val type: String,
-    val currency: String,
-    val price: Double,
-    val change: Double,
-    val changePercent: Double
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 )

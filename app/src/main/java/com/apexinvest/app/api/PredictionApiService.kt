@@ -1,6 +1,5 @@
 package com.apexinvest.app.api
 
-<<<<<<< HEAD
 import com.apexinvest.app.api.models.JobInitResponse
 import com.apexinvest.app.api.models.JobStatusResponse
 import com.google.gson.annotations.SerializedName
@@ -33,30 +32,4 @@ interface PredictionApiService {
     suspend fun checkJobStatus(
         @Path("job_id") jobId: String
     ): JobStatusResponse
-=======
-import com.apexinvest.app.data.PortfolioAnalysisRequest
-import com.apexinvest.app.data.PortfolioSummary
-import com.apexinvest.app.data.StockAnalysisRequest
-import com.apexinvest.app.data.StockAnalysisResponse
-import retrofit2.http.Body
-import retrofit2.http.Header
-import retrofit2.http.Headers
-import retrofit2.http.POST
-
-interface PredictionApiService {
-
-    @Headers("Content-Type: application/json")
-    @POST("api/v1/analyze/stock")
-    suspend fun analyzeStock(
-        @Header("X-Firebase-IDToken") idToken: String,
-        @Body request: StockAnalysisRequest
-    ): StockAnalysisResponse
-
-    @Headers("Content-Type: application/json")
-    @POST("api/v1/analyze/portfolio")
-    suspend fun analyzePortfolio(
-        @Header("X-Firebase-IDToken") idToken: String,
-        @Body request: PortfolioAnalysisRequest
-    ): PortfolioSummary
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 }

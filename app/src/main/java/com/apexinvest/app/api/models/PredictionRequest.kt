@@ -1,6 +1,5 @@
 package com.apexinvest.app.api.models
 
-<<<<<<< HEAD
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
@@ -101,25 +100,4 @@ data class AgentSynthesis(
     @SerializedName("fundamental_thesis") val fundamentalThesis: String,
     @SerializedName("macro_news_thesis") val macroNewsThesis: String,
     @SerializedName("final_verdict") val finalVerdict: String
-=======
-// --- Request Model (What the app sends to FastAPI) ---
-data class PredictionRequest(
-    val symbol: String,
-    val duration_days: Int
-)
-
-// --- Response Models (What the app receives from FastAPI) ---
-
-// Represents a single forecasted price point
-data class PredictionPoint(
-    val date: String, // ISO format date string
-    val predicted_price: Double
-)
-
-// Main Prediction Response
-data class PredictionResponse(
-    val symbol: String,
-    val current_price: Double,
-    val predictions: List<PredictionPoint>
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 )

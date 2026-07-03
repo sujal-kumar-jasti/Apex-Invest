@@ -12,12 +12,9 @@ import kotlinx.coroutines.flow.Flow
 interface WatchlistDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-<<<<<<< HEAD
     suspend fun insertStocks(stocks: List<WatchlistEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-=======
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
     suspend fun insertStock(stock: WatchlistEntity)
 
     @Delete
@@ -29,7 +26,6 @@ interface WatchlistDao {
     @Query("SELECT symbol FROM watchlist")
     suspend fun getAllWatchlistSymbols(): List<String>
 
-<<<<<<< HEAD
     @Query("SELECT * FROM watchlist WHERE symbol = :symbol")
     suspend fun getStockBySymbol(symbol: String): WatchlistEntity?
 
@@ -38,13 +34,4 @@ interface WatchlistDao {
 
     @Query("DELETE FROM watchlist")
     suspend fun clearWatchlist()
-=======
-    @Query("DELETE FROM watchlist")
-    suspend fun clearWatchlist()
-    // In app/src/main/java/com/apexinvest/app/db/WatchlistDao.kt (Inside interface WatchlistDao)
-
-    @Query("SELECT * FROM watchlist WHERE symbol = :symbol")
-    suspend fun getStockBySymbol(symbol: String): WatchlistEntity?
-
->>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 }
