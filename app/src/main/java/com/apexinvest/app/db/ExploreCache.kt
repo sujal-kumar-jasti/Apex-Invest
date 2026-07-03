@@ -7,20 +7,28 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import com.apexinvest.app.data.model.CommodityDto
 import com.apexinvest.app.data.model.TrendingStockDto
-import com.apexinvest.app.viewmodel.CommodityUiModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 
 // --- ENTITY ---
 @Entity(tableName = "explore_cache")
+@TypeConverters(ExploreConverters::class)
 data class ExploreCacheEntity(
     @PrimaryKey val id: Int = 0, // Singleton row
-    val indices: List<CommodityUiModel>,
+
+    // Store Raw DTOs, NOT UI Models
+    val indices: List<CommodityDto>,
     val trendingStocks: List<TrendingStockDto>,
-    val commodities: List<CommodityUiModel>,
-    val globalIndices: List<CommodityUiModel>,
+    val commodities: List<CommodityDto>,
+    val globalIndices: List<CommodityDto>,
+
+    // Store the rate used at the time of fetch (Default fallback)
+    val conversionRate: Double = 84.0,
+
     val lastUpdated: Long = System.currentTimeMillis()
 )
 
@@ -41,16 +49,16 @@ interface ExploreDao {
 class ExploreConverters {
     private val gson = Gson()
 
-    // Commodity List
+    // Converter for CommodityDto (Raw Data)
     @TypeConverter
-    fun fromCommodityList(list: List<CommodityUiModel>?): String {
-        return gson.toJson(list ?: emptyList<CommodityUiModel>())
+    fun fromCommodityList(list: List<CommodityDto>?): String {
+        return gson.toJson(list ?: emptyList<CommodityDto>())
     }
 
     @TypeConverter
-    fun toCommodityList(data: String?): List<CommodityUiModel> {
+    fun toCommodityList(data: String?): List<CommodityDto> {
         if (data.isNullOrEmpty()) return emptyList()
-        val type = object : TypeToken<List<CommodityUiModel>>() {}.type
+        val type = object : TypeToken<List<CommodityDto>>() {}.type
         return gson.fromJson(data, type)
     }
 

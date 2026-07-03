@@ -9,28 +9,38 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransactionDao {
-    // Record a new trade
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: TransactionEntity)
 
-    // Get history for a specific stock (Ordered by latest first)
     @Query("SELECT * FROM transactions WHERE symbol = :symbol ORDER BY timestamp DESC")
     fun getTransactionsForStock(symbol: String): Flow<List<TransactionEntity>>
 
-    // Get ALL history (For a global 'Orders' tab)
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
-    // Calculate Total Invested Amount for a stock (BUYs only)
-    // Professional feature: This helps calculate Average Price accurately on the DB side
+    @Query("SELECT * FROM transactions ORDER BY timestamp DESC LIMIT :limit")
+    fun getRecentTransactions(limit: Int): Flow<List<TransactionEntity>>
+
     @Query("SELECT SUM(quantity * price) FROM transactions WHERE symbol = :symbol AND type = 'BUY'")
     suspend fun getTotalInvestedForStock(symbol: String): Double?
 
-    // Calculate Total Quantity Bought
-    @Query("SELECT SUM(quantity) FROM transactions WHERE symbol = :symbol AND type = 'BUY'")
-    suspend fun getTotalQtyBought(symbol: String): Int?
+    @Query("""
+        SELECT 
+            (SELECT TOTAL(quantity) FROM transactions WHERE symbol = :symbol AND type = 'BUY') - 
+            (SELECT TOTAL(quantity) FROM transactions WHERE symbol = :symbol AND type = 'SELL')
+    """)
+    suspend fun getCurrentHoldingQuantity(symbol: String): Double
 
-    // Delete a specific transaction (e.g., if user made a mistake)
+
     @Delete
     suspend fun deleteTransaction(transaction: TransactionEntity)
+
+
+    @Delete
+    suspend fun deleteTransactions(transactions: List<TransactionEntity>)
+
+
+    @Query("DELETE FROM transactions")
+    suspend fun clearAllTransactions()
 }

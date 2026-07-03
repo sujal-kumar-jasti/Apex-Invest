@@ -1,453 +1,889 @@
 package com.apexinvest.app.data
 
-import android.annotation.SuppressLint
+import android.util.Log
+import com.apexinvest.app.api.ApexAuthApiService
 import com.apexinvest.app.api.CurrencyApiService
-import com.apexinvest.app.api.GlobalStockApiService
+import com.apexinvest.app.api.IdeasApi
+import com.apexinvest.app.api.PortfolioAnalysisRequest
+import com.apexinvest.app.api.PredictionApiService
 import com.apexinvest.app.api.StockApiService
+import com.apexinvest.app.api.TradingViewStockApiService
+import com.apexinvest.app.api.YahooFinanceApiService
+import com.apexinvest.app.api.models.CandlePointDto
+import com.apexinvest.app.api.models.CollectionItem
+import com.apexinvest.app.api.models.DeepAnalysisResponse
+import com.apexinvest.app.api.models.PortfolioSummary
+import com.apexinvest.app.api.models.ScreenerResult
+import com.apexinvest.app.api.models.StockHistoryChartDto
+import com.apexinvest.app.api.models.StockLiveQuoteDto
+import com.apexinvest.app.api.models.StockSearchResult
+import com.apexinvest.app.api.models.SyncResponse
+import com.apexinvest.app.api.models.TransactionItem
+import com.apexinvest.app.api.models.WatchlistItem
+import com.apexinvest.app.api.util.YahooParser
+import com.apexinvest.app.data.remote.ApexInvestApiService
+import com.apexinvest.app.data.util.SessionPriceCache
+import com.apexinvest.app.db.AnalysisCacheDao
+import com.apexinvest.app.db.AnalysisCacheEntity
 import com.apexinvest.app.db.PortfolioDao
+import com.apexinvest.app.db.StockCacheDao
+import com.apexinvest.app.db.StockCacheEntity
 import com.apexinvest.app.db.WatchlistDao
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.apexinvest.app.utils.SessionManager
+import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// --- Data Models ---
-data class StockFullDetail(
-    val symbol: String,
-    val price: Double,
-    val change: Double,
-    val changePercent: Double,
-    val prevClose: Double,
-    val open: Double,
-    val dayHigh: Double,
-    val dayLow: Double,
-    val marketCap: String,
-    val peRatio: String,
-    val dividendYield: String,
-    val yearHigh: String,
-    val yearLow: String,
-    val historyPoints: List<Pair<String, Double>>
-)
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 
-data class StockSearchResult(
-    val symbol: String,
-    val shortName: String?,
-    val longName: String?,
-    val exchange: String?,
-    val type: String?
-)
+data class PriceUpdate(val symbol: String, val price: Double, val change: Double, val changePercent: Double, val previousClose: Double = 0.0)
 
 class PortfolioRepository(
     private val portfolioDao: PortfolioDao,
     private val watchlistDao: WatchlistDao,
     private val transactionDao: TransactionDao,
-    private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth,
-
-    // --- UPDATED SERVICES ---
-    private val stockApiService: StockApiService,       // Indian Stocks (Existing)
-    private val globalApiService: GlobalStockApiService, // Global Stocks (NEW Python Backend)
-    private val currencyApiService: CurrencyApiService
+    private val stockCacheDao: StockCacheDao,
+    private val analysisCacheDao: AnalysisCacheDao,
+    private val sessionManager: SessionManager,
+    private val authApiService: ApexAuthApiService,
+    private val yahooFinanceApiService: YahooFinanceApiService,
+    private val stockApiService: StockApiService,
+    private val currencyApiService: CurrencyApiService,
+    private val predictionApiService: PredictionApiService,
+    private val ideasApi: IdeasApi,
+    private val tradingViewApiService: TradingViewStockApiService,
+    private val apexInvestApiService: ApexInvestApiService
 ) {
 
-    private fun getPortfolioRef() = auth.currentUser?.let { firestore.collection("users").document(it.uid).collection("portfolio") }
-    private fun getWatchlistRef() = auth.currentUser?.let { firestore.collection("users").document(it.uid).collection("watchlist") }
+    private val tag = "PortfolioRepository"
+    private val gson = Gson()
 
-    // Helper to distinguish Indian stocks
-    private fun isIndian(symbol: String): Boolean = symbol.endsWith(".NS") || symbol.endsWith(".BO")
+    // 🚀 GLOBAL PRICE HUB: Broadcasts all price updates (WS or Yahoo) to all ViewModels
+    val globalPriceUpdates = MutableSharedFlow<PriceUpdate>(extraBufferCapacity = 128)
+    private var lastPriceSyncTime = 0L
+    private var cachedRatesMap: Map<String, Double> = mapOf("INR" to 84.0, "USD" to 1.0)
 
-    // ---------------------------------------------------------
-    // --- 1. SEARCH (Consolidated) ---
-    // ---------------------------------------------------------
-    suspend fun searchStocks(query: String): List<StockSearchResult> {
-        return withContext(Dispatchers.IO) {
-            try {
-                // Now using the Global API which wraps Yahoo Search (covers US, India, Crypto, etc.)
-                globalApiService.searchStocks(query).map { item ->
-                    StockSearchResult(
-                        symbol = item.symbol,
-                        shortName = item.name,
-                        longName = item.name,
-                        exchange = item.exchange,
-                        type = item.type
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                emptyList()
-            }
-        }
-    }
+    private val sparklineMemCache = java.util.concurrent.ConcurrentHashMap<String, List<Double>>()
 
-    // ---------------------------------------------------------
-    // --- 2. FULL DETAILS (Unified Logic) ---
-    // ---------------------------------------------------------
-    @SuppressLint("DefaultLocale")
-    suspend fun getFullStockDetails(symbol: String, range: String): Result<StockFullDetail> {
-        return withContext(Dispatchers.IO) {
-            try {
-                // We define variables to hold data from EITHER API
-                val symbolClean = symbol.uppercase()
+    // 🚀 OPTIMIZATION: Chunked parallel processing prevents OOM crashes on low-end devices
+    suspend fun hydrateSparklineCache() = withContext(Dispatchers.IO) {
+        val allPortfolio = portfolioDao.getAllStocks().firstOrNull() ?: emptyList()
+        val allWatchlist = watchlistDao.getAllWatchlistStocks().firstOrNull() ?: emptyList()
+        val allSymbols = (allPortfolio.map { it.symbol.uppercase().trim() } +
+                allWatchlist.map { it.symbol.uppercase().trim() }).distinct()
 
-                val price: Double
-                val change: Double
-                val changePercent: Double
-                val prevClose: Double
-                val open: Double
-                val dayHigh: Double
-                val dayLow: Double
-                val marketCap: String
-                val peRatio: String
-                val divYield: String
-                val yHigh: String
-                val yLow: String
-                val rawHistory: List<List<Any>> // Raw format from Python APIs
+        if (allSymbols.isEmpty()) return@withContext
 
-                // --- SWITCH: INDIAN vs GLOBAL ---
-                if (isIndian(symbolClean)) {
+        val cachedList = stockCacheDao.getStocksCache(allSymbols)
 
-                    val response = stockApiService.getStockDetails(symbolClean, range, charts = true)
-                    price = response.price
-                    change = response.change
-                    changePercent = response.changePercent
-                    prevClose = response.prevClose
-                    open = response.open
-                    dayHigh = response.dayHigh
-                    dayLow = response.dayLow
-                    marketCap = formatIndianMarketCap(response.marketCap)
-                    peRatio = response.peRatio
-                    divYield = response.dividendYield
-                    yHigh = response.yearHigh
-                    yLow = response.yearLow
-                    rawHistory = response.historyPoints
-                } else {
-                    // B. Use NEW Global API (Replaces Finnhub/Tiingo)
-                    val response = globalApiService.getStockDetails(symbolClean, range,charts=true)
-                    price = response.price
-                    change = response.change
-                    changePercent = response.changePercent
-                    prevClose = response.prevClose
-                    open = response.open
-                    dayHigh = response.dayHigh
-                    dayLow = response.dayLow
-                    marketCap = response.marketCap
-                    peRatio = response.peRatio
-                    divYield = response.dividendYield
-                    yHigh = response.yearHigh
-                    yLow = response.yearLow
-                    rawHistory = response.historyPoints
-                }
-
-                // --- PROCESS HISTORY (Standardize Format) ---
-                // Python returns [["Date", 123.45], ...]. converting to List<Pair<String, Double>>
-                val cleanHistory = rawHistory.mapNotNull { point ->
-                    try {
-                        val date = point[0] as? String
-                        val p = (point[1] as? Number)?.toDouble()
-                        if (date != null && p != null) Pair(date, p) else null
-                    } catch (_: Exception) { null }
-                }
-
-                // --- BUILD MODEL ---
-                val detail = StockFullDetail(
-                    symbol = symbolClean,
-                    price = price,
-                    change = change,
-                    changePercent = changePercent,
-                    prevClose = prevClose,
-                    open = open,
-                    dayHigh = dayHigh,
-                    dayLow = dayLow,
-                    marketCap = marketCap,
-                    peRatio = peRatio,
-                    dividendYield = divYield,
-                    yearHigh = yHigh,
-                    yearLow = yLow,
-                    historyPoints = cleanHistory
-                )
-
-                // --- 3. RECALCULATE CHANGE BASED ON RANGE ---
-                // "1D" -> Standard Daily Change (Current - PrevClose)
-                // "1M", "1Y", etc. -> (Current - First Point in Graph)
-                val calculatedDetail = if (range == "1D") {
-                    detail
-                } else {
-                    if (detail.historyPoints.isNotEmpty()) {
-                        val firstPrice = detail.historyPoints.first().second
-                        val lastPrice = detail.price
-                        val rangeChange = lastPrice - firstPrice
-                        val rangeChangePct = if (firstPrice != 0.0) (rangeChange / firstPrice) * 100 else 0.0
-
-                        detail.copy(
-                            change = rangeChange,
-                            changePercent = rangeChangePct
-                        )
-                    } else {
-                        detail
+        cachedList.chunked(15).forEach { chunk ->
+            chunk.map { cached ->
+                async {
+                    val s = cached.symbol.uppercase().trim()
+                    if (cached.candlesJson != "[]" && cached.candlesJson.isNotBlank()) {
+                        try {
+                            val candles = gson.fromJson<List<CandlePointDto>>(cached.candlesJson, object : com.google.gson.reflect.TypeToken<List<CandlePointDto>>() {}.type)
+                            sparklineMemCache[s] = candles.map { it.close }
+                        } catch (_: Exception) {}
                     }
                 }
+            }.awaitAll()
+        }
+    }
 
-                Result.success(calculatedDetail)
+    fun getCachedSparklineSync(symbol: String): List<Double> {
+        return sparklineMemCache[symbol.uppercase().trim()] ?: emptyList()
+    }
 
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Result.failure(e)
+    suspend fun prefetchSparklines(symbols: List<String>) = withContext(Dispatchers.IO) {
+        if (symbols.isEmpty()) return@withContext
+        val normalized = symbols.map { it.uppercase().trim() }
+        val caches = stockCacheDao.getStocksCache(normalized)
+
+        caches.forEach { cached ->
+            if (cached.candlesJson.isNotBlank() && cached.candlesJson != "[]") {
+                try {
+                    val candles = gson.fromJson<List<CandlePointDto>>(
+                        cached.candlesJson,
+                        object : com.google.gson.reflect.TypeToken<List<CandlePointDto>>() {}.type
+                    )
+                    sparklineMemCache[cached.symbol.uppercase().trim()] = candles.map { it.close }
+                } catch (_: Exception) {}
             }
         }
     }
 
-    private suspend fun fetchAndUpdatePrice(symbol: String) {
+    val allPortfolioStocks: Flow<List<StockEntity>> = portfolioDao.getAllStocks()
+    val allWatchlistStocks: Flow<List<WatchlistEntity>> = watchlistDao.getAllWatchlistStocks()
+
+
+    suspend fun refreshMissingStockMetadata() = withContext(Dispatchers.IO) {
+        val currentPortfolio = portfolioDao.getAllStocks().firstOrNull() ?: emptyList()
+        val currentWatchlist = watchlistDao.getAllWatchlistStocks().firstOrNull() ?: emptyList()
+
+        val symbolsToFetch = (
+                currentPortfolio.filter { it.companyName == "Unknown" || it.sector == "Unknown" || it.companyName.isBlank() }.map { it.symbol } +
+                        currentWatchlist.filter { it.companyName == "Unknown" || it.sector == "Unknown" || it.companyName.isBlank() }.map { it.symbol }
+                ).toSet()
+
+        if (symbolsToFetch.isEmpty()) return@withContext
+        val fetchedMetaMap = symbolsToFetch.chunked(10).flatMap { chunk ->
+            coroutineScope {
+                chunk.map { symbol ->
+                    async {
+                        try {
+                            val formattedSymbol = com.apexinvest.app.util.StockMetadataUtils.getFormattedSymbol(symbol)
+                            val meta = tradingViewApiService.getStockMeta(symbol = formattedSymbol)
+                            if (meta.companyName.isNotBlank() && meta.companyName != "Unknown") {
+                                symbol to meta
+                            } else null
+                        } catch (e: Exception) { null }
+                    }
+                }.awaitAll().filterNotNull()
+            }
+        }.toMap()
+
+        if (fetchedMetaMap.isEmpty()) return@withContext
+
+        val portfolioBatch = mutableListOf<StockEntity>()
+        currentPortfolio.forEach { stock ->
+            fetchedMetaMap[stock.symbol]?.let { tvMeta ->
+                if (stock.companyName == "Unknown" || stock.companyName.isBlank()) {
+                    portfolioBatch.add(
+                        stock.copy(
+                            companyName = tvMeta.companyName,
+                            sector = tvMeta.sector.ifBlank { "Other" }
+                        )
+                    )
+                }
+            }
+        }
+
+        val watchlistBatch = mutableListOf<WatchlistEntity>()
+        currentWatchlist.forEach { watchItem ->
+            fetchedMetaMap[watchItem.symbol]?.let { tvMeta ->
+                if (watchItem.companyName == "Unknown" || watchItem.companyName.isBlank()) {
+                    watchlistBatch.add(
+                        watchItem.copy(
+                            companyName = tvMeta.companyName,
+                            sector = tvMeta.sector.ifBlank { "Other" }
+                        )
+                    )
+                }
+            }
+        }
+
+        if (portfolioBatch.isNotEmpty()) portfolioDao.insertStocks(portfolioBatch)
+        if (watchlistBatch.isNotEmpty()) watchlistDao.insertStocks(watchlistBatch)
+    }
+
+    suspend fun addStockToPortfolio(item: StockPortfolioItem, cachedPrice: Double = 0.0, cachedChange: Double = 0.0, cachedChangePercent: Double = 0.0, cachedPrevClose: Double = 0.0) = withContext(Dispatchers.IO) {
+        val existingStock = portfolioDao.getStockBySymbol(item.symbol)
+        var companyName = existingStock?.companyName ?: "Unknown"
+        var sector = existingStock?.sector ?: "Unknown"
+
+        if (existingStock == null || companyName == "Unknown" || companyName.isBlank()) {
+            try {
+                val formattedSymbol = com.apexinvest.app.util.StockMetadataUtils.getFormattedSymbol(item.symbol)
+                val tvMeta = tradingViewApiService.getStockMeta(symbol = formattedSymbol)
+                companyName = tvMeta.companyName.ifBlank { "Unknown" }
+                sector = tvMeta.sector.ifBlank { "Other" }
+            } catch (_: Exception) {}
+        }
+
+        portfolioDao.insertStock(item.toEntity(cachedPrice, cachedChange, cachedChangePercent, cachedPrevClose, companyName, sector).copy(timestamp = System.currentTimeMillis(), lastUpdated = item.buyDate.ifEmpty { LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE) }))
+    }
+
+    suspend fun addStockToWatchlist(symbol: String, lastPrice: Double = 0.0, dailyChange: Double = 0.0, changePercent: Double = 0.0, prevClose: Double = 0.0) = withContext(Dispatchers.IO) {
+        val existingWatch = watchlistDao.getStockBySymbol(symbol)
+        var companyName = existingWatch?.companyName ?: "Unknown"
+        var sector = existingWatch?.sector ?: "Unknown"
+
+        if (existingWatch == null || companyName == "Unknown" || companyName.isBlank()) {
+            try {
+                val formattedSymbol = com.apexinvest.app.util.StockMetadataUtils.getFormattedSymbol(symbol)
+                val tvMeta = tradingViewApiService.getStockMeta(symbol = formattedSymbol)
+                companyName = tvMeta.companyName.ifBlank { "Unknown" }
+                sector = tvMeta.sector.ifBlank { "Other" }
+            } catch (_: Exception) {}
+        }
+
+        watchlistDao.insertStock(WatchlistEntity(symbol, companyName, sector, lastPrice, dailyChange, changePercent, prevClose))
+
+        val authHeader = sessionManager.getAuthHeader()
+        CoroutineScope(Dispatchers.IO).launch {
+            if (authHeader != null) {
+                try { authApiService.updateCloudWatchlist(authHeader, WatchlistItem(symbol)) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    suspend fun fullCloudSync(forceLoginSync: Boolean = false) = withContext(Dispatchers.IO) {
+        // 🚀 OPTIMIZATION: Local-First Logic
+        // If we already have local data, don't hit the remote DB unless forced
+        val hasLocalData = (portfolioDao.getPortfolioSize() > 0) ||
+                (watchlistDao.getAllWatchlistStocks().firstOrNull()?.isNotEmpty() == true) ||
+                (transactionDao.getAllTransactions().firstOrNull()?.isNotEmpty() == true)
+
+        if (!forceLoginSync && hasLocalData) {
+            Log.d(tag, "Skipping cloud sync: Local data exists.")
+            return@withContext
+        }
+
+        val rawToken = sessionManager.getAuthHeader() ?: return@withContext
         try {
-            val symbolClean = symbol.uppercase()
-            var price = 0.0
-            var change = 0.0
+            val header = if (rawToken.startsWith("Bearer ")) rawToken else "Bearer $rawToken"
+            val response = authApiService.syncUserData(header)
 
-            if (isIndian(symbolClean)) {
-                try {
-                    val data = stockApiService.getLivePrice(symbolClean, "1D", charts = false)
-                    price = data.price
-                    change = data.changePercent
-                } catch (_: Exception) { }
-            } else {
-                try {
-                    val data = globalApiService.getStockDetails(symbolClean, "1D", charts = false)
-                    price = data.price
-                    change = data.changePercent
-                } catch (_: Exception) { }
-            }
+            if (response.isSuccessful && response.body() != null) {
+                val cloudData: SyncResponse = response.body()!!
+                val currentStocks = portfolioDao.getAllStocks().first().associateBy { it.symbol }
+                val currentWatchlist = watchlistDao.getAllWatchlistStocks().first().associateBy { it.symbol }
 
-            if (price > 0.0) {
-                // Update Local Database
-                val pStock = portfolioDao.getStockBySymbol(symbolClean)
-                if (pStock != null) {
-                    portfolioDao.insertStock(pStock.copy(currentPrice = price, dailyChange = change))
-                }
-                val wStock = watchlistDao.getStockBySymbol(symbolClean)
-                if (wStock != null) {
-                    watchlistDao.insertStock(wStock.copy(lastPrice = price))
-                }
-            }
-        } catch (e: Exception) { e.printStackTrace() }
-    }
-
-    // ---------------------------------------------------------
-    // --- 4. DATA SYNC & UTILS (Unchanged) ---
-    // ---------------------------------------------------------
-
-    private fun formatIndianMarketCap(rawCap: String?): String {
-        if (rawCap.isNullOrEmpty()) return "-"
-        return try {
-            val sanitized = rawCap.replace(",", "")
-            val value = sanitized.toDouble()
-            val inMillions = value / 1_000_000.0
-            String.format(Locale.US, "%.2fM", inMillions)
-        } catch (_: Exception) {
-            rawCap
-        }
-    }
-
-    suspend fun syncAllDataAndPrices() {
-        withContext(Dispatchers.IO) {
-            try {
-                if (auth.currentUser == null) return@withContext
-                val (cloudPortfolio, cloudWatchlist) = coroutineScope {
-                    val pDef = async { getPortfolioRef()!!.get().await().toObjects(StockPortfolioItem::class.java) }
-                    val wDef = async { getWatchlistRef()!!.get().await() }
-                    Pair(pDef.await(), wDef.await())
-                }
-                // Sync to DB
-                cloudPortfolio.forEach { item ->
-                    val existing = portfolioDao.getStockBySymbol(item.symbol)
-                    portfolioDao.insertStock(item.toEntity().copy(
-                        currentPrice = existing?.currentPrice ?: 0.0,
-                        lastUpdated = System.currentTimeMillis()
-                    ))
-                }
-                val watchItems = cloudWatchlist.documents.mapNotNull { doc ->
-                    doc.getString("symbol")?.let { WatchlistEntity(it, 0.0) }
-                }
+                portfolioDao.clearPortfolio()
                 watchlistDao.clearWatchlist()
-                watchItems.forEach { watchlistDao.insertStock(it) }
+                transactionDao.clearAllTransactions()
 
-                // Fetch Prices
-                val allSymbols = (cloudPortfolio.map { it.symbol } + watchItems.map { it.symbol }).distinct()
-                allSymbols.forEach { symbol -> launch { fetchAndUpdatePrice(symbol) } }
+                cloudData.portfolio.forEach { item ->
+                    val existing = currentStocks[item.symbol]
+                    addStockToPortfolio(StockPortfolioItem(item.symbol, item.quantity, item.averageBuyPrice, item.lastUpdated), existing?.currentPrice ?: 0.0, existing?.dailyChange ?: 0.0, existing?.changePercent ?: 0.0, existing?.previousClose ?: 0.0)
+                }
 
-            } catch (e: Exception) { e.printStackTrace() }
-        }
-    }
+                cloudData.watchlist.forEach { item ->
+                    val existing = currentWatchlist[item.symbol]
+                    addStockToWatchlist(item.symbol, existing?.lastPrice ?: 0.0, existing?.dailyChange ?: 0.0, existing?.changePercent ?: 0.0, existing?.previousClose ?: 0.0)
+                }
 
-    private var cachedUsdToInrRate: Double = 84.0
+                cloudData.transactions.forEach { item ->
+                    transactionDao.insertTransaction(TransactionEntity(symbol = item.symbol, type = TransactionType.valueOf(item.type.uppercase()), quantity = item.quantity, price = item.price, timestamp = item.timestamp, fees = item.fees, notes = item.notes ?: ""))
+                }
 
-    suspend fun getConversionRate(): Double {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = currencyApiService.getUsdRates()
-                val rate = response.rates["INR"] ?: 84.0
-                cachedUsdToInrRate = rate
-                rate
-            } catch (e: Exception) {
-                e.printStackTrace()
-                cachedUsdToInrRate
+                analysisCacheDao.clearAll()
+                refreshMissingStockMetadata()
+                syncAllDataAndPrices()
             }
+        } catch (e: Exception) { Log.e(tag, "SYNC CRASHED", e) }
+    }
+
+    suspend fun searchStocks(query: String): List<StockSearchResult> = withContext(Dispatchers.IO) {
+        if (query.length < 2) return@withContext emptyList()
+        try {
+            val results = apexInvestApiService.searchStocks(query)
+            results.map {
+                StockSearchResult(
+                    symbol = it.symbol,
+                    name = it.name ?: "",
+                    type = it.type ?: "Unknown",
+                    exchange = it.exchange ?: ""
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Search failed", e)
+            emptyList()
         }
     }
 
-    // ---------------------------------------------------------
-    // --- 5. TRANSACTION ENGINE (Real Ledger Logic) ---
-    // ---------------------------------------------------------
+    fun getMarketStatus(symbol: String): Pair<Boolean, String> {
+        return com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(symbol)
+    }
 
-    suspend fun recordTrade(
-        symbol: String,
-        type: TransactionType,
-        quantity: Int,
-        price: Double,
-        dateString: String
-    ) = withContext(Dispatchers.IO) {
+    suspend fun recordTrade(symbol: String, type: TransactionType, quantity: Double, price: Double, dateString: String) = withContext(Dispatchers.IO) {
         val cleanSymbol = symbol.uppercase().trim()
         val timestamp = System.currentTimeMillis()
+        val authHeader = sessionManager.getAuthHeader()
 
-        // 1. Log the transaction in history
-        val transaction = TransactionEntity(
-            symbol = cleanSymbol,
-            type = type,
-            quantity = quantity,
-            price = price,
-            timestamp = timestamp
-        )
-        transactionDao.insertTransaction(transaction)
+        transactionDao.insertTransaction(TransactionEntity(symbol = cleanSymbol, type = type, quantity = quantity, price = price, timestamp = timestamp, fees = 0.0, notes = "Manual Trade on $dateString"))
 
-        // 2. Update the Portfolio Snapshot
-        val currentHolding = portfolioDao.getStockBySymbol(cleanSymbol)
-
+        val current = portfolioDao.getStockBySymbol(cleanSymbol)
         if (type == TransactionType.BUY) {
-            if (currentHolding == null) {
-                val newStock = StockEntity(
-                    symbol = cleanSymbol,
-                    quantity = quantity,
-                    buyPrice = price,
-                    currentPrice = price,
-                    buyDate = dateString,
-                    dailyChange = 0.0
-                )
-                portfolioDao.insertStock(newStock)
-                getPortfolioRef()?.document(cleanSymbol)?.set(StockPortfolioItem(cleanSymbol, quantity, price, dateString))
+            if (current == null) {
+                addStockToPortfolio(StockPortfolioItem(cleanSymbol, quantity, price, dateString), price, 0.0, 0.0, price)
             } else {
-                // Weighted Average Logic
-                val totalOldCost = currentHolding.quantity * currentHolding.buyPrice
-                val totalNewCost = quantity * price
-                val newTotalQty = currentHolding.quantity + quantity
-                val newAvgPrice = (totalOldCost + totalNewCost) / newTotalQty
-
-                val updatedStock = currentHolding.copy(
-                    quantity = newTotalQty,
-                    buyPrice = newAvgPrice
-                )
-                portfolioDao.insertStock(updatedStock)
-                getPortfolioRef()?.document(cleanSymbol)?.set(StockPortfolioItem(cleanSymbol, newTotalQty, newAvgPrice, currentHolding.buyDate))
+                val newQty = current.quantity + quantity
+                val newAvg = ((current.quantity * current.buyPrice) + (quantity * price)) / newQty
+                portfolioDao.insertStock(current.copy(quantity = newQty, buyPrice = newAvg, lastUpdated = dateString))
             }
         } else {
-            if (currentHolding != null) {
-                val newQty = currentHolding.quantity - quantity
+            current?.let {
+                val newQty = it.quantity - quantity
+                if (newQty <= 0.0001) portfolioDao.deleteStock(it)
+                else portfolioDao.insertStock(it.copy(quantity = newQty, lastUpdated = dateString))
+            }
+        }
 
-                if (newQty <= 0) {
-                    portfolioDao.deleteStock(currentHolding)
-                    getPortfolioRef()?.document(cleanSymbol)?.delete()
+        CoroutineScope(Dispatchers.IO).launch {
+            if (authHeader != null) {
+                try { authApiService.recordCloudTrade(authHeader, TransactionItem(cleanSymbol, type.name, quantity, price, 0.0, "Manual Trade on $dateString", timestamp)) } catch (_: Exception) {}
+            }
+        }
+
+        analysisCacheDao.clearAll()
+        CoroutineScope(Dispatchers.IO).launch { fetchAndUpdatePrice(cleanSymbol) }
+    }
+
+    suspend fun deletePortfolioStock(symbol: String) = withContext(Dispatchers.IO) {
+        val s = symbol.uppercase().trim()
+        val authHeader = sessionManager.getAuthHeader()
+
+        portfolioDao.getStockBySymbol(s)?.let { portfolioDao.deleteStock(it) }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            if (authHeader != null) {
+                try { authApiService.deleteCloudPortfolioItem(authHeader, s) } catch (_: Exception) {}
+            }
+        }
+        analysisCacheDao.clearAll()
+    }
+
+    suspend fun deleteWatchlistStock(symbol: String) = withContext(Dispatchers.IO) {
+        val s = symbol.uppercase().trim()
+        val authHeader = sessionManager.getAuthHeader()
+
+        watchlistDao.getStockBySymbol(s)?.let { watchlistDao.deleteStock(it) }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            if (authHeader != null) {
+                try { authApiService.deleteFromCloudWatchlist(authHeader, WatchlistItem(s)) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    suspend fun updateStockPricesInDb(symbol: String, price: Double, change: Double, changePercent: Double = 0.0, prevClose: Double = 0.0) {
+        val s = symbol.uppercase().trim()
+        
+        // 🚀 BROADCAST: Update RAM cache and notify all observers immediately
+        updatePriceRAM(s, price, change, changePercent, prevClose)
+
+        val portfolio = portfolioDao.getStockBySymbol(s)
+        val watchlist = watchlistDao.getStockBySymbol(s)
+        val cache = stockCacheDao.getStockCache(s)
+
+        if (portfolio != null) portfolioDao.insertStock(portfolio.copy(currentPrice = price, dailyChange = change, changePercent = changePercent, previousClose = prevClose))
+        if (watchlist != null) watchlistDao.insertStock(watchlist.copy(lastPrice = price, dailyChange = change, changePercent = changePercent, previousClose = prevClose))
+        if (cache != null) stockCacheDao.insertStockCache(cache.copy(price = price, change = change, changePercent = changePercent, previousClose = prevClose, timestamp = System.currentTimeMillis()))
+    }
+
+    /**
+     * 🚀 Update the in-memory price cache and broadcast to all active ViewModels.
+     */
+    suspend fun updatePriceRAM(symbol: String, price: Double, change: Double, pct: Double, prevClose: Double = 0.0) {
+        val s = symbol.uppercase().trim()
+        
+        // 🚀 UPDATE COMMON VARIABLE
+        SessionPriceCache.update(s, price, change, pct, prevClose)
+
+        // Update Sparkline Last Point
+        val chart = sparklineMemCache[s]?.toMutableList()
+        if (!chart.isNullOrEmpty()) {
+            chart[chart.size - 1] = price
+            sparklineMemCache[s] = chart
+        }
+
+        // Emit to Global Flow for reactive UI
+        globalPriceUpdates.emit(PriceUpdate(s, price, change, pct, prevClose))
+    }
+
+    suspend fun updateStockPricesBatch(quotes: List<StockLiveQuoteDto>) = withContext(Dispatchers.IO) {
+        if (quotes.isEmpty()) return@withContext
+        val symbols = quotes.map { it.symbol.uppercase().trim() }
+
+        val allPortfolio = portfolioDao.getAllStocks().first().associateBy { it.symbol.uppercase().trim() }
+        val allWatchlist = watchlistDao.getAllWatchlistStocks().first().associateBy { it.symbol.uppercase().trim() }
+        val allCache = stockCacheDao.getStocksCache(symbols).associateBy { it.symbol.uppercase().trim() }
+
+        val portfolioBatch = mutableListOf<StockEntity>()
+        val watchlistBatch = mutableListOf<WatchlistEntity>()
+        val cacheBatch = mutableListOf<StockCacheEntity>()
+
+        quotes.forEach { quote ->
+            val s = quote.symbol.uppercase().trim()
+
+            // 🚀 BROADCAST: Update RAM cache and notify all observers immediately
+            updatePriceRAM(s, quote.price, quote.change, quote.changePercent, quote.previousClose)
+
+            allPortfolio[s]?.let { portfolioBatch.add(it.copy(currentPrice = quote.price, dailyChange = quote.change, changePercent = quote.changePercent, previousClose = quote.previousClose)) }
+            allWatchlist[s]?.let { watchlistBatch.add(it.copy(lastPrice = quote.price, dailyChange = quote.change, changePercent = quote.changePercent, previousClose = quote.previousClose)) }
+
+            val existingCache = allCache[s]
+            cacheBatch.add(
+                StockCacheEntity(
+                    symbol = s,
+                    price = quote.price,
+                    change = quote.change,
+                    changePercent = quote.changePercent,
+                    previousClose = quote.previousClose,
+                    candlesJson = quote.candlesJson ?: existingCache?.candlesJson ?: "[]",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+
+        if (portfolioBatch.isNotEmpty()) portfolioDao.insertStocks(portfolioBatch)
+        if (watchlistBatch.isNotEmpty()) watchlistDao.insertStocks(watchlistBatch)
+        if (cacheBatch.isNotEmpty()) stockCacheDao.insertStocksCache(cacheBatch)
+    }
+
+    private suspend fun fetchAndUpdatePrice(symbol: String, skipChartIfFresh: Boolean = false) = withContext(Dispatchers.IO) {
+        val s = symbol.uppercase().trim()
+        val now = System.currentTimeMillis()
+        val cached = stockCacheDao.getStockCache(s)
+
+        // 1. Market Hours Optimization
+        val marketStatus = com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(s)
+        if (!marketStatus.first && cached != null) return@withContext
+
+        var candlesJsonToSave: String = cached?.candlesJson ?: "[]"
+        val isSessionOutdated = cached != null && com.apexinvest.app.util.StockMetadataUtils.isNewSessionStarted(s, cached.timestamp)
+
+        if (!isSessionOutdated && cached != null && (now - cached.timestamp < 9_000L)) {
+            if (!sparklineMemCache.containsKey(s) && cached.candlesJson != "[]") {
+                try {
+                    val candles = gson.fromJson<List<CandlePointDto>>(cached.candlesJson, object : com.google.gson.reflect.TypeToken<List<CandlePointDto>>() {}.type)
+                    sparklineMemCache[s] = candles.map { it.close }
+                } catch (_: Exception) {}
+            }
+        } else {
+            try {
+                // 🚀 OPTIMIZATION: Only fetch heavy 2d chart if session is outdated or we have no data
+                val shouldFetchHeavyChart = isSessionOutdated || candlesJsonToSave == "[]" || (now - (cached?.timestamp ?: 0L) > 1_800_000L) // 30 mins
+                
+                val yahooResponse = if (shouldFetchHeavyChart) {
+                    yahooFinanceApiService.getLivePriceAndChart(s, "5m", "2d")
                 } else {
-                    val updatedStock = currentHolding.copy(quantity = newQty)
-                    portfolioDao.insertStock(updatedStock)
-                    getPortfolioRef()?.document(cleanSymbol)?.set(StockPortfolioItem(cleanSymbol, newQty, currentHolding.buyPrice, currentHolding.buyDate))
+                    yahooFinanceApiService.getQuotes(s)
                 }
-            }
-        }
-        Unit
-    }
-
-    // --- Legacy Wrappers ---
-    suspend fun saveStock(item: StockPortfolioItem) {
-        recordTrade(item.symbol, TransactionType.BUY, item.quantity, item.buyPrice, item.buyDate)
-    }
-
-    suspend fun deleteStock(item: StockPortfolioItem) {
-        recordTrade(item.symbol, TransactionType.SELL, item.quantity, item.buyPrice, item.buyDate)
-    }
-
-    suspend fun addWatchlistStock(symbol: String) {
-        val s = symbol.uppercase()
-        getWatchlistRef()?.document(s)?.set(mapOf("symbol" to s, "lastPrice" to 0.0))?.await()
-        syncAllDataAndPrices()
-    }
-    suspend fun deleteWatchlistStock(symbol: String) {
-        val s = symbol.uppercase()
-        getWatchlistRef()?.document(s)?.delete()?.await()
-        watchlistDao.deleteStock(WatchlistEntity(s, 0.0))
-    }
-
-    fun getLocalPortfolio(): Flow<List<StockEntity>> = portfolioDao.getAllStocks()
-    fun getLocalWatchlist(): Flow<List<WatchlistEntity>> = watchlistDao.getAllWatchlistStocks()
-
-    suspend fun clearAllLocalData() {
-        withContext(Dispatchers.IO) {
-            portfolioDao.clearPortfolio()
-            watchlistDao.clearWatchlist()
-        }
-    }
-
-    // --- CSV GENERATION ---
-    suspend fun generatePortfolioCsv(): String {
-        return withContext(Dispatchers.IO) {
-            val stocks = portfolioDao.getAllStocks().first()
-            val sb = StringBuilder()
-            sb.append('\uFEFF')
-            sb.append("Symbol,Shares,Buy Price,Current Price,Total Invested,Total Value,Gain/Loss\n")
-
-            stocks.forEach { stock ->
-                val isIndian = stock.symbol.endsWith(".NS") || stock.symbol.endsWith(".BO")
-                val currency = if (isIndian) "Rs. " else "$"
-
-                val invested = stock.buyPrice * stock.quantity
-                val value = stock.currentPrice * stock.quantity
-                val gain = value - invested
-
-                fun fmt(amount: Double): String {
-                    return "$currency${String.format(Locale.US, "%.2f", amount)}"
+                
+                val quoteDto = if (shouldFetchHeavyChart) {
+                    YahooParser.parseToQuote(s, yahooResponse as com.apexinvest.app.api.models.yahoo.YahooChartResponse)
+                } else {
+                    YahooParser.parseV7Response(yahooResponse as com.apexinvest.app.api.models.yahoo.YahooQuoteResponse)
+                        .firstOrNull { it.symbol.equals(s, ignoreCase = true) } ?: throw Exception("No quote")
                 }
 
-                sb.append("${stock.symbol},")
-                sb.append("${stock.quantity},")
-                sb.append("${fmt(stock.buyPrice)},")
-                sb.append("${fmt(stock.currentPrice)},")
-                sb.append("${fmt(invested)},")
-                sb.append("${fmt(value)},")
-                sb.append("${fmt(gain)}\n")
-            }
-            sb.toString()
+                if (quoteDto.price > 0.0) {
+                    updateStockPricesInDb(s, quoteDto.price, quoteDto.change, quoteDto.changePercent, quoteDto.previousClose)
+                }
+
+                if (shouldFetchHeavyChart) {
+                    val fullCandles = YahooParser.parseToCandles(yahooResponse as com.apexinvest.app.api.models.yahoo.YahooChartResponse)
+                    val candles = YahooParser.filterLast24h(fullCandles)
+                    if (candles.isNotEmpty()) {
+                        val lastCandle = candles.last()
+                        val updatedCandles = if (Math.abs(lastCandle.close - quoteDto.price) > 0.001) {
+                            candles.dropLast(1) + lastCandle.copy(close = quoteDto.price)
+                        } else candles
+
+                        candlesJsonToSave = gson.toJson(updatedCandles)
+                        sparklineMemCache[s] = updatedCandles.map { it.close }
+                    }
+                } else {
+                    // Incremental Update
+                    try {
+                        val listType = object : com.google.gson.reflect.TypeToken<MutableList<CandlePointDto>>() {}.type
+                        val existingCandles: MutableList<CandlePointDto> = if (candlesJsonToSave != "[]") {
+                            gson.fromJson(candlesJsonToSave, listType)
+                        } else mutableListOf()
+
+                        existingCandles.add(CandlePointDto((now / 1000).toString(), quoteDto.price, quoteDto.price, quoteDto.price, quoteDto.price, 0))
+                        val rollingStart = (now / 1000) - 86400
+                        val filtered = existingCandles.filter { (it.time.toLongOrNull() ?: 0L) >= rollingStart }
+                        candlesJsonToSave = gson.toJson(filtered)
+                        sparklineMemCache[s] = filtered.map { it.close }
+                    } catch (_: Exception) {}
+                }
+
+                stockCacheDao.insertStockCache(
+                    StockCacheEntity(
+                        symbol = s,
+                        price = quoteDto.price,
+                        change = quoteDto.change,
+                        changePercent = quoteDto.changePercent,
+                        previousClose = quoteDto.previousClose,
+                        candlesJson = candlesJsonToSave,
+                        timestamp = now
+                    )
+                )
+            } catch (_: Exception) {}
         }
     }
 
-    private suspend fun validateSymbolExists(symbol: String): Boolean {
-        return try {
-            val query = symbol.uppercase()
-            // Updated to use Global API search
-            val searchResponse = globalApiService.searchStocks(query)
-            searchResponse.any { it.symbol.equals(query, ignoreCase = true) }
+    suspend fun fetchLivePriceOnly(symbol: String, updateDb: Boolean = true, forceNetwork: Boolean = false): StockLiveQuoteDto? = withContext(Dispatchers.IO) {
+        val s = symbol.uppercase().trim()
+        val cached = stockCacheDao.getStockCache(s)
+        val now = System.currentTimeMillis()
+        
+        // 1. Market Hours Optimization: If market is closed (including extended hours), don't fetch from network UNLESS sparkline is very sparse
+        val isMarketActive = com.apexinvest.app.util.StockMetadataUtils.isExtendedMarketActive(s)
+        val hasGoodSparkline = cached != null && cached.candlesJson != "[]" && cached.candlesJson.length > 500
+        
+        if (!isMarketActive && hasGoodSparkline && !forceNetwork) {
+            return@withContext StockLiveQuoteDto(
+                s, cached.price, cached.change, cached.changePercent,
+                cached.previousClose, 0.0, 0.0, 0.0, 0.0, 0.0,
+                candlesJson = cached.candlesJson
+            )
+        }
+
+        val isSessionOutdated = cached != null && com.apexinvest.app.util.StockMetadataUtils.isNewSessionStarted(s, cached.timestamp)
+
+        // 🚀 Snappier Updates: Reduced cache TTL from 8s to 4s for active dashboard/detail tracking
+        if (!isSessionOutdated && cached != null && (now - cached.timestamp < 4_000L) && !forceNetwork) {
+            if (!sparklineMemCache.containsKey(s) && cached.candlesJson != "[]") {
+                try {
+                    val candles = gson.fromJson<List<CandlePointDto>>(cached.candlesJson, object : com.google.gson.reflect.TypeToken<List<CandlePointDto>>() {}.type)
+                    sparklineMemCache[s] = candles.map { it.close }
+                } catch (_: Exception) {}
+            }
+
+            return@withContext StockLiveQuoteDto(
+                s, cached.price, cached.change, cached.changePercent,
+                cached.previousClose, 0.0, 0.0, 0.0, 0.0, 0.0,
+                candlesJson = cached.candlesJson
+            )
+        }
+
+        try {
+            // 🚀 FIX: Fetch full chart if local cache is empty or session is outdated.
+            // This ensures charts load immediately after login or fresh install.
+            val shouldFetchHeavyChart = cached == null || cached.candlesJson == "[]" || cached.candlesJson.length < 300 || isSessionOutdated
+            
+            val yahooResponse = if (shouldFetchHeavyChart) {
+                // Use 5d range for sparklines to ensure we always have points (even on Monday mornings)
+                yahooFinanceApiService.getLivePriceAndChart(s, interval = "15m", range = "5d")
+            } else {
+                yahooFinanceApiService.getQuotes(s)
+            }
+
+            val quoteData = if (shouldFetchHeavyChart) {
+                YahooParser.parseToQuote(s, yahooResponse as com.apexinvest.app.api.models.yahoo.YahooChartResponse)
+            } else {
+                YahooParser.parseV7Response(yahooResponse as com.apexinvest.app.api.models.yahoo.YahooQuoteResponse)
+                    .firstOrNull { it.symbol.equals(s, ignoreCase = true) } ?: return@withContext null
+            }
+            
+            if (quoteData.price <= 0.0) return@withContext null
+
+            var candlesJsonToSave = cached?.candlesJson ?: "[]"
+            
+            if (shouldFetchHeavyChart) {
+                // Parse full history from the heavy response
+                val fullCandles = YahooParser.parseToCandles(yahooResponse as com.apexinvest.app.api.models.yahoo.YahooChartResponse)
+                val regular = YahooParser.filterRegularHours(s, fullCandles)
+                val filtered = YahooParser.filterLast24h(regular)
+                if (filtered.isNotEmpty()) {
+                    candlesJsonToSave = gson.toJson(filtered)
+                    sparklineMemCache[s] = filtered.map { it.close }
+                }
+            } else {
+                // 🚀 OPTIMIZATION: Incremental Chart Update (Append instead of Re-fetch)
+                try {
+                    // Check if current time is within regular market hours before appending to the regular hour sparkline
+                    val isRegularSession = com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(s).first
+                    
+                    if (isRegularSession) {
+                        val listType = object : com.google.gson.reflect.TypeToken<MutableList<CandlePointDto>>() {}.type
+                        val existingCandles: MutableList<CandlePointDto> = if (candlesJsonToSave != "[]") {
+                            gson.fromJson(candlesJsonToSave, listType)
+                        } else mutableListOf()
+
+                        // Append new point
+                        val newPoint = CandlePointDto(
+                            time = (now / 1000).toString(),
+                            open = quoteData.price,
+                            high = quoteData.price,
+                            low = quoteData.price,
+                            close = quoteData.price,
+                            volume = 0
+                        )
+                        
+                        existingCandles.add(newPoint)
+                        
+                        // Cleanup: Keep only last 24h
+                        val rollingStart = (now / 1000) - 86400
+                        val filtered = existingCandles.filter { (it.time.toLongOrNull() ?: 0L) >= rollingStart }
+                        
+                        candlesJsonToSave = gson.toJson(filtered)
+                        sparklineMemCache[s] = filtered.map { it.close }
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "Incremental chart update failed for $s", e)
+                }
+            }
+
+            if (updateDb) {
+                stockCacheDao.insertStockCache(
+                    StockCacheEntity(
+                        symbol = s, price = quoteData.price, change = quoteData.change,
+                        changePercent = quoteData.changePercent, previousClose = quoteData.previousClose,
+                        candlesJson = candlesJsonToSave, timestamp = now
+                    )
+                )
+                updateStockPricesInDb(s, quoteData.price, quoteData.change, quoteData.changePercent, quoteData.previousClose)
+            }
+            quoteData.copy(candlesJson = candlesJsonToSave)
         } catch (e: Exception) {
-            false
+            Log.e(tag, "fetchLivePriceOnly failed for $s", e)
+            null
         }
     }
 
-    fun getTransactionHistory(symbol: String): Flow<List<TransactionEntity>> {
-        return transactionDao.getTransactionsForStock(symbol.uppercase())
+    suspend fun fetchChartOnly(symbol: String, range: String): StockHistoryChartDto? = withContext(Dispatchers.IO) {
+        try {
+            val s = symbol.uppercase().trim()
+            val (interval, fetchRange) = when(range) {
+                "1d" -> "1m" to "2d"
+                "5d" -> "5m" to "5d"
+                "1mo", "3mo", "6mo" -> "1d" to range
+                "1y", "2y", "ytd" -> "1d" to range
+                else -> "1wk" to range
+            }
+
+            val yahooResponse = yahooFinanceApiService.getLivePriceAndChart(s, interval, fetchRange)
+            val fullCandles = YahooParser.parseToCandles(yahooResponse)
+            val candles = if (range == "1d") YahooParser.filterLast24h(fullCandles) else fullCandles
+
+            StockHistoryChartDto(symbol = s, range = range, candles = candles)
+        } catch (_: Exception) { null }
     }
 
-    suspend fun getTotalInvested(symbol: String): Double {
-        return transactionDao.getTotalInvestedForStock(symbol.uppercase()) ?: 0.0
+    // 🚀 OPTIMIZATION: Market-Aware Sync & Force Refresh Support
+    suspend fun syncAllDataAndPrices(forceFullRefresh: Boolean = false) = withContext(Dispatchers.IO) {
+        if (!sessionManager.isLoggedIn()) return@withContext
+        val allPortfolio = portfolioDao.getAllStocks().first()
+        val allWatchlist = watchlistDao.getAllWatchlistStocks().first()
+        val allSymbols = (allPortfolio.map { it.symbol } + allWatchlist.map { it.symbol }).distinct()
+
+        if (allSymbols.isEmpty()) return@withContext
+
+        if (forceFullRefresh) {
+            // 🌟 APP STARTUP/LOGIN: Refresh everything with 5d charts to fill sparklines
+            allSymbols.chunked(5).forEach { chunk ->
+                chunk.map { async { fetchLivePriceOnly(it, forceNetwork = true) } }.awaitAll()
+            }
+        } else {
+            // 🚀 PERIODIC UPDATE: Poll for stocks where markets are open or in extended/grace hours
+            val activeMarkets = allSymbols.filter { com.apexinvest.app.util.StockMetadataUtils.isExtendedMarketActive(it) }
+            if (activeMarkets.isNotEmpty()) {
+                val results = mutableListOf<StockLiveQuoteDto>()
+                activeMarkets.chunked(20).forEach { chunk ->
+                    try {
+                        val symbolsString = chunk.joinToString(",")
+                        val yahooResponse = yahooFinanceApiService.getQuotes(symbolsString)
+                        val fetched = YahooParser.parseV7Response(yahooResponse)
+                        results.addAll(fetched)
+                    } catch (e: Exception) {
+                        Log.e(tag, "Failed to fetch batch quotes for $chunk", e)
+                    }
+                }
+                updateStockPricesBatch(results)
+            }
+        }
+        lastPriceSyncTime = System.currentTimeMillis()
+    }
+
+    suspend fun getConversionRates(): Map<String, Double> = withContext(Dispatchers.IO) {
+        try {
+            val response = currencyApiService.getExchangeRates("USD")
+            cachedRatesMap = response.rates
+            cachedRatesMap
+        } catch (_: Exception) {
+            cachedRatesMap
+        }
+    }
+
+    suspend fun getConversionRate(): Double = getConversionRates()["INR"] ?: 84.0
+
+    suspend fun getMarketCollection(type: String): List<CollectionItem> = withContext(Dispatchers.IO) { try { stockApiService.getCollection(type) } catch (_: Exception) { emptyList() } }
+
+    suspend fun filterStocks(sector: String?, minCap: Double?, minPe: Double?, maxPe: Double?): List<ScreenerResult> = withContext(Dispatchers.IO) { try { stockApiService.runScreener(sector, minCap, minPe, maxPe) } catch (_: Exception) { emptyList() } }
+
+    // 🚀 OPTIMIZATION: Added isActive guardrails to prevent background memory leaks
+    fun getDeepAnalysisFlow(symbol: String, forceRefresh: Boolean = false): Flow<Pair<String, DeepAnalysisResponse?>> = flow {
+        val s = symbol.uppercase().trim()
+        val cacheKey = "DEEP_$s"
+        val cached = analysisCacheDao.getAnalysisCache(cacheKey)
+        val data = cached?.let { gson.fromJson(it.dataJson, DeepAnalysisResponse::class.java) }
+        
+        // Cache Duration: 24 hours (86,400,000 ms)
+        val isExpired = cached == null || (System.currentTimeMillis() - cached.timestamp > 86_400_000L)
+        
+        if (data != null && !forceRefresh && !isExpired) {
+            emit("COMPLETED" to data)
+            return@flow
+        }
+        
+        try {
+            emit((if (data != null) "Refreshing AI Data..." else "Initializing AI Engine...") to data)
+            val jobId = predictionApiService.analyzeStock(s).jobId
+            while(currentCoroutineContext().isActive) {
+                val status = predictionApiService.checkJobStatus(jobId)
+                if (status.status == "COMPLETED") {
+                    val res = gson.fromJson(gson.toJson(status.data), DeepAnalysisResponse::class.java)
+                    analysisCacheDao.insertAnalysisCache(AnalysisCacheEntity(cacheKey, gson.toJson(res), "", System.currentTimeMillis()))
+                    emit("COMPLETED" to res)
+                    break
+                }
+                else if (status.status == "FAILED") { 
+                    emit("Error: Analysis failed" to data) 
+                    break 
+                } else emit(status.status to data)
+                delay(3000L)
+            }
+        } catch (e: Exception) { 
+            emit("Error: ${e.localizedMessage}" to data) 
+        }
+    }
+
+    fun getPortfolioAnalysisFlow(forceRefresh: Boolean = false): Flow<Pair<String, PortfolioSummary?>> = flow {
+        val cacheKey = "PORTFOLIO_SUMMARY"
+        val cached = analysisCacheDao.getAnalysisCache(cacheKey)
+
+        val data = cached?.let {
+            try { gson.fromJson(it.dataJson, PortfolioSummary::class.java) } catch (e: Exception) { null }
+        }
+
+        // Generate Portfolio Signature: symbols and quantities
+        val portfolio = portfolioDao.getAllStocks().first()
+        val currentSignature = portfolio.sortedBy { it.symbol }
+            .joinToString("|") { "${it.symbol}:${it.quantity}" }
+        
+        val isExpired = cached == null || (System.currentTimeMillis() - cached.timestamp > 86_400_000L)
+        val signatureMatches = cached?.signature == currentSignature
+
+        if (data != null && !forceRefresh && !isExpired && signatureMatches) {
+            emit("COMPLETED" to data)
+            return@flow
+        }
+
+        try {
+            emit("Gathering Portfolio Data..." to data)
+            val symbols = portfolio.map { it.symbol }
+
+            if (symbols.isEmpty()) {
+                emit("EMPTY_PORTFOLIO" to null)
+                return@flow
+            }
+
+            val jobId = predictionApiService.analyzePortfolio(PortfolioAnalysisRequest(symbols)).jobId
+            while(currentCoroutineContext().isActive) {
+                val status = predictionApiService.checkJobStatus(jobId)
+                if (status.status == "COMPLETED") {
+                    val res = gson.fromJson(gson.toJson(status.data), PortfolioSummary::class.java)
+                    analysisCacheDao.insertAnalysisCache(
+                        AnalysisCacheEntity(cacheKey, gson.toJson(res), currentSignature, System.currentTimeMillis())
+                    )
+                    emit("COMPLETED" to res)
+                    break
+                } else if (status.status == "FAILED") {
+                    emit("Error: Backend failure" to data)
+                    break
+                } else {
+                    emit(status.status to data)
+                }
+                delay(3000L)
+            }
+        } catch (e: Exception) {
+            emit("Error: ${e.localizedMessage}" to data)
+        }
+    }
+
+    // 🚀 OPTIMIZATION: Smart Fallback Parser for AI Portfolio Summary
+    suspend fun getAiPortfolioInsights(summary: String): String = withContext(Dispatchers.IO) {
+        try {
+            val res = ideasApi.getPortfolioAnalysis(com.apexinvest.app.api.models.PortfolioRequest(summary)).body()?.responseText
+            if (!res.isNullOrBlank()) return@withContext res
+
+            // If server returned empty body on rich string, fall back to stripping the weights
+            val cleanTickersOnly = summary.split(";").map { it.substringBefore("(").trim() }.filter { it.isNotEmpty() }.joinToString(", ")
+            ideasApi.getPortfolioAnalysis(com.apexinvest.app.api.models.PortfolioRequest(cleanTickersOnly)).body()?.responseText ?: getOfflineFallback()
+        } catch (e: Exception) {
+            try {
+                // Secondary recovery attempt on HTTP 400 rejection
+                val cleanTickersOnly = summary.split(";").map { it.substringBefore("(").trim() }.filter { it.isNotEmpty() }.joinToString(", ")
+                ideasApi.getPortfolioAnalysis(com.apexinvest.app.api.models.PortfolioRequest(cleanTickersOnly)).body()?.responseText ?: getOfflineFallback()
+            } catch (_: Exception) {
+                getOfflineFallback()
+            }
+        }
+    }
+
+    suspend fun getAiThematicInsights(theme: String): String = withContext(Dispatchers.IO) { try { ideasApi.getThematicAnalysis(com.apexinvest.app.api.models.ThemeRequest(theme)).body()?.responseText ?: getOfflineFallback() } catch (_: Exception) { getOfflineFallback() } }
+
+    // 🛡️ THE FIX: Cache Guard - Refuse to return the offline fallback string as valid cached data
+    suspend fun getCachedAiInsights(key: String): String? = withContext(Dispatchers.IO) {
+        val cached = analysisCacheDao.getAnalysisCache(key)?.dataJson
+        if (cached == getOfflineFallback()) null else cached
+    }
+
+    // 🛡️ THE FIX: Cache Guard - Refuse to save the offline fallback string to the database
+    suspend fun saveAiInsights(key: String, data: String) = withContext(Dispatchers.IO) {
+        if (data != getOfflineFallback()) {
+            analysisCacheDao.insertAnalysisCache(AnalysisCacheEntity(key, data))
+        }
+    }
+
+    private fun getOfflineFallback(): String = "[RISK] Offline Mode: Unable to reach server.\n[SUGGESTION] SPY | QQQ | GLD"
+
+    fun getLocalPortfolio() = portfolioDao.getAllStocks()
+    fun getLocalWatchlist() = watchlistDao.getAllWatchlistStocks()
+    fun getAllTransactionHistory() = transactionDao.getAllTransactions()
+    fun getRecentTransactions(limit: Int) = transactionDao.getRecentTransactions(limit)
+
+    suspend fun getCachedSparkline(symbol: String): List<Double> = stockCacheDao.getStockCache(symbol.uppercase())?.candlesJson?.let {
+        try {
+            gson.fromJson<List<CandlePointDto>>(it, object : com.google.gson.reflect.TypeToken<List<CandlePointDto>>() {}.type).map { c -> c.close }
+        } catch (_: Exception) { emptyList() }
+    } ?: emptyList()
+
+    suspend fun deleteTransaction(transaction: TransactionEntity) = withContext(Dispatchers.IO) {
+        val authHeader = sessionManager.getAuthHeader()
+        transactionDao.deleteTransaction(transaction)
+        if (authHeader != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try { authApiService.deleteCloudTransaction(authHeader, transaction.id.toString()) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    suspend fun clearAllLocalData() = withContext(Dispatchers.IO) {
+        portfolioDao.clearPortfolio()
+        watchlistDao.clearWatchlist()
+        transactionDao.clearAllTransactions()
+        stockCacheDao.clearAll()
+        analysisCacheDao.clearAll()
+        sessionManager.clearSession()
+        lastPriceSyncTime = 0L
+        sparklineMemCache.clear()
+    }
+
+    suspend fun generatePortfolioCsv(): String = withContext(Dispatchers.IO) {
+        val stocks = portfolioDao.getAllStocks().first()
+        val sb = StringBuilder()
+        sb.append("Symbol,Shares,Buy Price,Current Price,Total Invested,Total Value,Gain/Loss\n")
+        stocks.forEach { stock ->
+            val code = com.apexinvest.app.util.guessCurrencyFromSymbol(stock.symbol)
+            val sym = com.apexinvest.app.util.getCurrencySymbol(code)
+            val inv = stock.buyPrice * stock.quantity
+            val currentVal = stock.currentPrice * stock.quantity
+            val gain = currentVal - inv
+            sb.append("${stock.symbol},${String.format(Locale.US, "%.4f", stock.quantity)},$sym${String.format(Locale.US, "%.2f", stock.buyPrice)},$sym${String.format(Locale.US, "%.2f", stock.currentPrice)},$sym${String.format(Locale.US, "%.2f", inv)},$sym${String.format(Locale.US, "%.2f", currentVal)},$sym${String.format(Locale.US, "%.2f", gain)}\n")
+        }
+        sb.toString()
     }
 }

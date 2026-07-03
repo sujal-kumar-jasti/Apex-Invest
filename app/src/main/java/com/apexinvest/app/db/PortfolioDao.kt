@@ -11,14 +11,15 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PortfolioDao {
 
-    // Inserts or replaces an existing stock based on the 'symbol' (PrimaryKey)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStocks(stocks: List<StockEntity>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStock(stock: StockEntity)
 
     @Delete
     suspend fun deleteStock(stock: StockEntity)
 
-    // Fetches all stocks and returns a flow to allow Compose to react to changes in real-time
     @Query("SELECT * FROM portfolio ORDER BY symbol ASC")
     fun getAllStocks(): Flow<List<StockEntity>>
 
@@ -27,4 +28,7 @@ interface PortfolioDao {
 
     @Query("DELETE FROM portfolio")
     suspend fun clearPortfolio()
+
+    @Query("SELECT COUNT(*) FROM portfolio")
+    suspend fun getPortfolioSize(): Int
 }

@@ -13,7 +13,6 @@ pluginManagement {
 }
 
 plugins {
-    // This plugin allows Gradle to automatically download the missing JDK/JVM
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 

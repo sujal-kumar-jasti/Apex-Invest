@@ -1,11 +1,11 @@
 package com.apexinvest.app.ui.screens
 
+import android.app.Activity
 import android.view.animation.OvershootInterpolator
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,11 +20,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -32,58 +35,74 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.apexinvest.app.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
-fun SplashScreen(isConnected: Boolean) {
-    // 1. Theme Detection Logic
-    val isDarkMode = isSystemInDarkTheme()
+fun SplashScreen(
+    isConnected: Boolean,
+    isStartupComplete: Boolean, // Kept for signature compatibility, but we will ignore it for speed
+    onTasksFinished: () -> Unit
+) {
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val isDarkMode = backgroundColor.luminance() < 0.5f
+    val view = LocalView.current
 
-    // 2. Fetch the dynamic tint from your XML resource
-    val splashTint = colorResource(id = R.color.splash_icon_tint)
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkMode
+        }
+    }
 
-    // 3. Define the UI colors based on your rules
-    // Rule: Background white in light mode, black in dark mode
-    val backgroundColor = if (isDarkMode) Color.Black else Color.White
+    val systemSplashIconColor = colorResource(id = R.color.splash_icon_tint)
+    val contentColor = if (isDarkMode) Color.White else Color(0xFF7A41C4)
 
-    // Rule: Text and Progress should be white in dark mode, brand purple in light mode
-    val contentColor = if (isDarkMode) Color.White else Color(0xFF533D85)
-
-    // Animation States
     val scale = remember { Animatable(0f) }
     val alpha = remember { Animatable(0f) }
+    var animationsFinished by remember { mutableStateOf(false) }
 
+    // 🚀 OPTIMIZATION: Play animations and leave immediately. Do not wait for data.
     LaunchedEffect(key1 = true) {
-        // Logo Bounce Animation
-        scale.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 800,
-                easing = { OvershootInterpolator(1.5f).getInterpolation(it) }
+        launch {
+            scale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 800,
+                    easing = { OvershootInterpolator(1.5f).getInterpolation(it) }
+                )
             )
-        )
-        // Text/Progress Fade In
-        delay(200)
-        alpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 600)
-        )
-    }
-    Scaffold(
-        // Dynamic Insets: 0dp when Offline (Banner pushes us down), Default when Online
-        contentWindowInsets = if (!isConnected) {
-            WindowInsets(0.dp)
-        } else {
-            ScaffoldDefaults.contentWindowInsets
         }
-    ) { innerPadding ->
+        launch {
+            alpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 600)
+            )
+        }
+        delay(1000) // 1 second animation minimum so it feels deliberate
+        animationsFinished = true
+    }
 
+    // 🚀 OPTIMIZATION: Trigger navigation the millisecond the animation is done.
+    LaunchedEffect(animationsFinished) {
+        if (animationsFinished) {
+            onTasksFinished()
+        }
+    }
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
+        containerColor = backgroundColor
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -91,24 +110,14 @@ fun SplashScreen(isConnected: Boolean) {
                 .padding(innerPadding),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // --- LOGO ---
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_splash_logo),
                     contentDescription = "App Logo",
-                    // Using the specific XML color resource for the tint
-                    colorFilter = ColorFilter.tint(splashTint),
-                    modifier = Modifier
-                        .size(288.dp) // Exact size for seamless transition
-                        .scale(scale.value)
+                    colorFilter = ColorFilter.tint(systemSplashIconColor),
+                    modifier = Modifier.size(288.dp).scale(scale.value)
                 )
-
-                // No height needed here if the XML has the padding we added earlier
-                Spacer(modifier = Modifier.height(0.dp))
-
-                // --- APP NAME ---
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "ApexInvest",
                     style = MaterialTheme.typography.headlineLarge,
@@ -117,7 +126,6 @@ fun SplashScreen(isConnected: Boolean) {
                     modifier = Modifier.alpha(alpha.value),
                     fontSize = 32.sp
                 )
-
                 Text(
                     text = "Smart Investment Intelligence",
                     style = MaterialTheme.typography.bodyMedium,
@@ -125,8 +133,6 @@ fun SplashScreen(isConnected: Boolean) {
                     modifier = Modifier.alpha(alpha.value)
                 )
             }
-
-            // --- LOADING INDICATOR ---
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -135,10 +141,7 @@ fun SplashScreen(isConnected: Boolean) {
                     .alpha(alpha.value)
             ) {
                 LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(10.dp)),
                     color = contentColor,
                     trackColor = contentColor.copy(alpha = 0.2f)
                 )

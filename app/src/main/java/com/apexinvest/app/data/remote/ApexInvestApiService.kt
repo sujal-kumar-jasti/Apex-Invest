@@ -8,7 +8,7 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-interface PrognosApiService {
+interface ApexInvestApiService {
 
     @GET("/search")
     suspend fun searchStocks(@Query("q") query: String): List<SearchResultDto>
@@ -19,7 +19,10 @@ interface PrognosApiService {
     @GET("/market/trending")
     suspend fun getTrendingStocks(): List<TrendingStockDto>
 
-    // NEW: Live Commodities & Indices
     @GET("/market/commodities")
     suspend fun getCommodities(): List<CommodityDto>
+
+    // NEW ENDPOINT
+    @GET("/market/global")
+    suspend fun getGlobalIndices(): List<CommodityDto>
 }

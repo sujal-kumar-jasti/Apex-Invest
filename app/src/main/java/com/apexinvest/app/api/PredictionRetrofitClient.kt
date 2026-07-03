@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 object PredictionRetrofitClient {
 
     // Your Hugging Face Space URL
-    private const val BASE_URL ="https://jsujalkumar7899-prognosai-fastapi-backend-1.hf.space/"
+    private const val BASE_URL ="https://swapna7899-prognosai-fastapi-backend-1.hf.space/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -17,6 +17,8 @@ object PredictionRetrofitClient {
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
+        // 🚨 CRITICAL FIX: Stops Android from sending duplicate ghost requests!
+        .retryOnConnectionFailure(false)
         // --- TIMEOUT UPDATES START ---
         // Sets the time allowed to establish a connection to the server
         .connectTimeout(5, TimeUnit.MINUTES)

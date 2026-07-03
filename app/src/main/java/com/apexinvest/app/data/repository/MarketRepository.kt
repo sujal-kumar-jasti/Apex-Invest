@@ -4,48 +4,35 @@ import com.apexinvest.app.data.model.CommodityDto
 import com.apexinvest.app.data.model.SearchResultDto
 import com.apexinvest.app.data.model.StockNews
 import com.apexinvest.app.data.model.TrendingStockDto
-import com.apexinvest.app.data.remote.PrognosApiService
+import com.apexinvest.app.data.remote.ApexInvestApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class MarketRepository(
-    private val api: PrognosApiService
+    private val api: ApexInvestApiService
 ) {
-    // Fetch News with Error Handling
+    // Fetch News
     suspend fun getNews(symbol: String): List<StockNews> = withContext(Dispatchers.IO) {
-        try {
-            api.getStockNews(symbol)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+        api.getStockNews(symbol)
     }
 
     // Search Stocks
     suspend fun search(query: String): List<SearchResultDto> = withContext(Dispatchers.IO) {
-        try {
-            api.searchStocks(query)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+        api.searchStocks(query)
     }
 
     // Get Trending
     suspend fun getTrending(): List<TrendingStockDto> = withContext(Dispatchers.IO) {
-        try {
-            api.getTrendingStocks()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+        api.getTrendingStocks()
     }
+
+    // Get Commodities
     suspend fun getCommodities(): List<CommodityDto> = withContext(Dispatchers.IO) {
-        try {
-            api.getCommodities()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+        api.getCommodities()
+    }
+
+    // Get Global Indices
+    suspend fun getGlobalIndices(): List<CommodityDto> = withContext(Dispatchers.IO) {
+        api.getGlobalIndices()
     }
 }
