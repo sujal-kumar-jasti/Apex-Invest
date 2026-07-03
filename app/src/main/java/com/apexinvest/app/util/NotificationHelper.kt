@@ -2,6 +2,7 @@ package com.apexinvest.app.util
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+<<<<<<< HEAD
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -15,10 +16,20 @@ import kotlin.random.Random
 
 fun showLocalTestNotification(context: Context) {
     val channelId = "test_premium_alerts"
+=======
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import kotlin.random.Random
+
+fun showLocalTestNotification(context: Context) {
+    val channelId = "test_channel_id"
+>>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
     val notificationId = Random.nextInt() // Unique ID to show multiple alerts
 
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+<<<<<<< HEAD
     // 1. Create Channel with high importance for heads-up display
     val channel = NotificationChannel(
         channelId,
@@ -66,5 +77,28 @@ fun showLocalTestNotification(context: Context) {
         .setAutoCancel(true)
 
     // 5. Show it
+=======
+    // 1. Create Channel (Required for Android 8+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(
+            channelId,
+            "Test Notifications",
+            NotificationManager.IMPORTANCE_HIGH // HIGH makes it pop up/make sound
+        ).apply {
+            description = "Channel for local testing"
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    // 2. Build Notification
+    val builder = NotificationCompat.Builder(context, channelId)
+        .setSmallIcon(android.R.drawable.ic_dialog_info) // Default icon
+        .setContentTitle("Test Alert #${notificationId % 100}")
+        .setContentText("This is a local notification test.")
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setAutoCancel(true)
+
+    // 3. Show it
+>>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
     manager.notify(notificationId, builder.build())
 }

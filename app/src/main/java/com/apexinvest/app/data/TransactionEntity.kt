@@ -8,12 +8,21 @@ data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val symbol: String,
+<<<<<<< HEAD
     val type: TransactionType,    // BUY or SELL
     val quantity: Double,
     val price: Double,            // Price per share at time of trade
     val fees: Double = 0.0,       // Brokerage/Taxes
     val notes: String = "",       // Optional user notes
     val timestamp: Long = System.currentTimeMillis()
+=======
+    val type: TransactionType,// BUY or SELL
+    val quantity: Int,        // e.g., 10
+    val price: Double,        // Price per share at time of trade
+    val timestamp: Long,      // Time of trade (Epoch millis)
+    val fees: Double = 0.0,   // Brokerage/Taxes (Professional touch)
+    val notes: String = ""    // Optional user notes
+>>>>>>> cd20cf09d1884ae6ac18adf62ae1b323ea6382c2
 )
 
 enum class TransactionType {
