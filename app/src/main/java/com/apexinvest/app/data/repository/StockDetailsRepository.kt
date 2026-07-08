@@ -25,7 +25,6 @@ import com.apexinvest.app.api.util.YahooParser
 import com.apexinvest.app.data.model.StockNews
 import com.apexinvest.app.data.remote.ApexInvestApiService
 import com.apexinvest.app.db.StockStaticDao
-import com.apexinvest.app.db.StockStaticEntity
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
+import kotlin.math.abs
 
 data class SessionCache<T>(
     val data: T?,
@@ -64,7 +64,7 @@ class StockDetailsRepository(
     private val newsCache = createSessionCache<String, SessionCache<List<StockNews>>>()
 
     // 🚀 SESSION TRACKER: Keep track of symbols fetched in this session to force fresh load once
-    private val sessionFetchedSymbols = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val sessionFetchedSymbols = Collections.synchronizedSet(mutableSetOf<String>())
 
     // Dedicated Cache for Python Financial Charts and Info
     private val pythonInfoCache = createSessionCache<String, SessionCache<PythonStockInfoDto>>()
@@ -241,7 +241,7 @@ class StockDetailsRepository(
                             sector = fetchedMatrix.sector ?: "Unknown",
                             industry = fetchedMatrix.industry ?: "Unknown"
                         )
-                        staticDao.insertStaticInfo(staticInfo!!)
+                        staticDao.insertStaticInfo(staticInfo)
                     }
                     pushCurrentState(isComplete = false)
                 }
@@ -313,7 +313,7 @@ class StockDetailsRepository(
         }
         return try {
             val (interval, fetchRange) = when(range) {
-                "1d" -> "1m" to "2d" // 🛠️ FETCH 2D for 24h rolling (More efficient than 5D)
+                "1d" -> "1m" to "5d" // 🛠️ INCREASED TO 5D for safer gap coverage (Weekends/Holidays)
                 "5d" -> "5m" to "5d"
                 "1mo" -> "15m" to "1mo"
                 "3mo", "6mo" -> "1d" to range
@@ -335,11 +335,11 @@ class StockDetailsRepository(
             } else {
                 fullCandles
             }
-            val candles = if (range == "1d") YahooParser.filterLast24h(regularCandles) else regularCandles
+            val candles = if (range == "1d") YahooParser.filterRollingWindow(symbol, regularCandles) else regularCandles
 
             val finalCandles = if (range == "1d" && candles.isNotEmpty() && quoteDto.price > 0) {
                 val last = candles.last()
-                if (Math.abs(last.close - quoteDto.price) > 0.001) {
+                if (abs(last.close - quoteDto.price) > 0.001) {
                     candles.dropLast(1) + last.copy(close = quoteDto.price)
                 } else candles
             } else candles
@@ -463,50 +463,8 @@ class StockDetailsRepository(
     // GRANULAR DOMAIN EXTRACTIONS (ViewModel Slices)
     // ==========================================
 
-    suspend fun getMarketPricingSlice(symbol: String, forceRefresh: Boolean = false): Result<MarketPricing> {
-        val liveRes = fetchLiveQuote(symbol, forceRefresh)
-        val matrixRes = fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh)
-        return if (liveRes.isSuccess || matrixRes.isSuccess) {
-            Result.success(mapMarketPricing(liveRes.getOrNull(), matrixRes.getOrNull()))
-        } else {
-            Result.failure(liveRes.exceptionOrNull() ?: Exception("Data slice loading failed"))
-        }
-    }
-
-    suspend fun getValuationSlice(symbol: String, forceRefresh: Boolean = false): Result<ValuationMultipliers> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapValuation(it) }
-    }
-
-    suspend fun getIncomeSlice(symbol: String, forceRefresh: Boolean = false): Result<IncomeStatement> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapIncomeStatement(it) }
-    }
-
-    suspend fun getBalanceSheetSlice(symbol: String, forceRefresh: Boolean = false): Result<BalanceSheet> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapBalanceSheet(it) }
-    }
-
-    suspend fun getCashFlowsSlice(symbol: String, forceRefresh: Boolean = false): Result<CashFlows> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapCashFlows(it) }
-    }
-
-    suspend fun getEfficiencySlice(symbol: String, forceRefresh: Boolean = false): Result<EfficiencyMargins> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapEfficiencyMargins(it) }
-    }
-
-    suspend fun getHistoricalReturnsSlice(symbol: String, forceRefresh: Boolean = false): Result<HistoricalReturns> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapHistoricalReturns(it) }
-    }
-
-    suspend fun getAdvancedTechnicalsSlice(symbol: String, forceRefresh: Boolean = false): Result<AdvancedTechnicals> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapAdvancedTechnicals(it) }
-    }
-
     suspend fun getAnalystCoverageSlice(symbol: String, forceRefresh: Boolean = false): Result<AnalystCoverage> {
         return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapAnalystCoverage(it) }
-    }
-
-    suspend fun getAdvancedRiskSlice(symbol: String, forceRefresh: Boolean = false): Result<AdvancedRiskMetrics> {
-        return fetchFullMatrix(symbol, isIndianMarket(symbol), forceRefresh).map { mapAdvancedRiskMetrics(it) }
     }
 
     private fun mapMarketPricing(live: StockLiveQuoteDto?, dto: StockInfoDto?): MarketPricing {

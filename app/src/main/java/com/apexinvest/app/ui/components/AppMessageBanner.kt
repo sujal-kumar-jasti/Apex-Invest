@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.apexinvest.app.ui.theme.BrandPurple
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class MessageType {
     INFO, SUCCESS, ERROR
@@ -53,7 +54,7 @@ fun AppMessageBanner(
 
     LaunchedEffect(message) {
         if (message != null) {
-            delay(3000)
+            delay(3000.milliseconds)
             onDismiss()
         }
     }

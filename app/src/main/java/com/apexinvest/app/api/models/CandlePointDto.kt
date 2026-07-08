@@ -1,7 +1,9 @@
 package com.apexinvest.app.api.models
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 
+@Keep
 data class CandlePointDto(
     @SerializedName("time") val time: String, // Formatted as "yyyy-MM-dd HH:mm" or "yyyy-MM-dd"
     @SerializedName("open") val open: Double,

@@ -46,6 +46,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -75,8 +76,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.ui)
     implementation(libs.googleid)
+    implementation(libs.material)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugRuntimeOnly(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.navigation.compose)
@@ -88,15 +89,19 @@ dependencies {
     implementation(libs.logging.interceptor)
     runtimeOnly(libs.kotlinx.coroutines.android)
     implementation(libs.tink.android)
-    
+    implementation(libs.androidx.constraintlayout)
+
     // Explicitly keeping important core libraries that might be used directly
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.coil.compose)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom.v20260101))
+
 }
 
 ksp {

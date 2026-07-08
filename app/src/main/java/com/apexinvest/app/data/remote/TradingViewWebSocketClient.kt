@@ -35,7 +35,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 import java.util.UUID
-
+import kotlin.time.Duration.Companion.milliseconds
 
 
 class TradingViewWebSocketClient(private val client: OkHttpClient) {
@@ -171,7 +171,7 @@ class TradingViewWebSocketClient(private val client: OkHttpClient) {
 
                 reconnectJob = scope.launch {
 
-                    delay(5000)
+                    delay(5000.milliseconds)
 
                     if (currentSymbol == symbol) {
 
@@ -263,7 +263,7 @@ class TradingViewWebSocketClient(private val client: OkHttpClient) {
 
                 }
 
-            } catch (e: Exception) { }
+            } catch (_: Exception) { }
 
         }
 

@@ -56,7 +56,7 @@ fun NewsAndPeersPane(news: List<StockNews>, peers: List<SimilarStock>, currency:
         Text("Latest Headlines", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 12.dp))
         val context = LocalContext.current
         news.forEach { article ->
-            Column(Modifier.fillMaxWidth().glassCard(isDark, RoundedCornerShape(16.dp)).clickable { article.link?.let { try { context.startActivity(Intent(Intent.ACTION_VIEW, it.toUri())) } catch (e: Exception) {} } }.padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().glassCard(isDark, RoundedCornerShape(16.dp)).clickable { article.link?.let { try { context.startActivity(Intent(Intent.ACTION_VIEW, it.toUri())) } catch (_: Exception) {} } }.padding(16.dp)) {
                 Text(article.publisher ?: "Market News", fontSize = 11.sp, color = BrandPurple, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Text(article.title ?: "No Title", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)

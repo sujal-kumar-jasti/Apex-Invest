@@ -70,20 +70,23 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.apexinvest.app.ui.components.CommonScreenHeader
+import coil.compose.AsyncImage
 import com.apexinvest.app.ui.components.glassCard
 import com.apexinvest.app.ui.theme.BrandPurple
 import com.apexinvest.app.ui.theme.LocalAppColors
 import com.apexinvest.app.util.getCurrencySymbol
 import com.apexinvest.app.viewmodel.AuthState
 import com.apexinvest.app.viewmodel.AuthViewModel
+import com.apexinvest.app.viewmodel.ExploreViewModel
 import com.apexinvest.app.viewmodel.PortfolioViewModel
+import com.apexinvest.app.viewmodel.PredictionViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -92,9 +95,9 @@ import java.time.LocalDate
 fun ProfileScreen(
     authViewModel: AuthViewModel,
     portfolioViewModel: PortfolioViewModel,
-    predictionViewModel: com.apexinvest.app.viewmodel.PredictionViewModel,
-    exploreViewModel: com.apexinvest.app.viewmodel.ExploreViewModel,
-    onBack: () -> Unit,
+    predictionViewModel: PredictionViewModel,
+    exploreViewModel: ExploreViewModel,
+    // Keeping the parameter so AppNavigation doesn't break, but we won't use it
     onNavigateToLogin: () -> Unit,
     isConnected: Boolean,
 ) {
@@ -117,6 +120,8 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
 
     val userEmail = remember { authViewModel.getUserEmail() ?: "trader@apexinvest.com" }
+    val userName = remember { authViewModel.getUserName() }
+    val userProfilePic = remember { authViewModel.getUserProfilePic() }
 
     var showPasswordModal by remember { mutableStateOf(value = false) }
     var oldPassword by remember { mutableStateOf("") }
@@ -171,7 +176,7 @@ fun ProfileScreen(
                         context.contentResolver.openOutputStream(uri)?.use { it.write(csvContent.toByteArray()) }
                         Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_LONG).show()
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     Toast.makeText(context, "Error saving file", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -283,11 +288,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            CommonScreenHeader(
-                title = "Profile & Settings",
-                onBackClick = onBack,
-                applyStatusBarsPadding = isConnected
-            )
+            Spacer(modifier = Modifier.height(if (isConnected) 48.dp else 24.dp))
 
             Column(
                 modifier = Modifier
@@ -295,7 +296,12 @@ fun ProfileScreen(
                     .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp)
             ) {
-                UserProfileCard(userEmail, isDark)
+                UserProfileCard(
+                    email = userEmail,
+                    name = userName,
+                    profilePicUrl = userProfilePic,
+                    isDark = isDark
+                )
 
                 Spacer(Modifier.height(32.dp))
 
@@ -350,7 +356,7 @@ fun ProfileScreen(
                         icon = Icons.Default.SwapHoriz,
                         title = "Trading Presets",
                         subtitle = "Buy: ${defaultBuyQty.toInt()} • Sell: ${defaultSellQty.toInt()} shares",
-                        onClick = { 
+                        onClick = {
                             tempBuyQty = defaultBuyQty.toString()
                             tempSellQty = defaultSellQty.toString()
                             showPresetDialog = true
@@ -452,7 +458,8 @@ fun ProfileScreen(
                         letterSpacing = 1.sp
                     )
                 }
-                Spacer(Modifier.height(32.dp))
+                // Increased bottom padding to 120dp so it sits cleanly above the bottom nav pill
+                Spacer(Modifier.height(120.dp))
             }
         }
     }
@@ -529,9 +536,9 @@ fun ChangePasswordDialog(
 }
 
 @Composable
-fun UserProfileCard(email: String, isDark: Boolean) {
-    val userInitial = email.firstOrNull()?.uppercase() ?: "A"
-    val displayName = email.substringBefore("@").replaceFirstChar { it.uppercase() }
+fun UserProfileCard(email: String, name: String?, profilePicUrl: String?, isDark: Boolean) {
+    val displayName = name?.takeIf { it.isNotBlank() } ?: email.substringBefore("@").replaceFirstChar { it.uppercase() }
+    val userInitial = displayName.firstOrNull()?.uppercase() ?: "A"
 
     Box(
         modifier = Modifier
@@ -551,12 +558,21 @@ fun UserProfileCard(email: String, isDark: Boolean) {
                     .border(1.dp, BrandPurple.copy(alpha = 0.3f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = userInitial,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    color = BrandPurple
-                )
+                if (!profilePicUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = profilePicUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = userInitial,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        color = BrandPurple
+                    )
+                }
             }
 
             Spacer(Modifier.width(20.dp))

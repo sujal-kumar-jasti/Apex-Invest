@@ -72,6 +72,7 @@ import com.apexinvest.app.api.models.StockSearchResult
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +112,14 @@ fun TradeEntrySheet(
     val inputBgColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f)
     val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
+    // 🚀 IMPROVED SEARCH UX: Debounce logic to trigger immediately after typing stops
+    LaunchedEffect(searchQuery) {
+        if (isBuy && searchQuery.length >= 2 && selectedSymbol.isEmpty()) {
+            kotlinx.coroutines.delay(250.milliseconds) // Short debounce for responsiveness
+            onSearch(searchQuery)
+        }
+    }
+
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
             if (isBuy) onSearch(initialQuery)
@@ -129,8 +138,8 @@ fun TradeEntrySheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding() // 🛠️ FIX: Ensure keyboard doesn't overlap content
             .navigationBarsPadding()
-            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp)
             .pointerInput(Unit) {
@@ -180,7 +189,7 @@ fun TradeEntrySheet(
                     searchQuery = it.uppercase()
                     selectedSymbol = ""
                     isDropdownExpanded = true
-                    if (isBuy) onSearch(it)
+                    // Search now handled by LaunchedEffect for better performance
                 },
                 placeholder = { Text(if (isBuy) "Search Symbol" else "Search Portfolio") },
                 leadingIcon = { Icon(Icons.Default.Search, null) },

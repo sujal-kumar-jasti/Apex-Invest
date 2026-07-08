@@ -1,8 +1,10 @@
 package com.apexinvest.app.db
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(tableName = "stock_cache")
 data class StockCacheEntity(
     @PrimaryKey val symbol: String,
@@ -19,6 +21,7 @@ data class StockCacheEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Keep
 @Entity(tableName = "analysis_cache")
 data class AnalysisCacheEntity(
     @PrimaryKey val key: String, // e.g., "DEEP_NVDA" or "PORTFOLIO_SUMMARY"

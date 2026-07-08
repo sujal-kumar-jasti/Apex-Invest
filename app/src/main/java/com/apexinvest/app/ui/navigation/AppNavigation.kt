@@ -1,52 +1,36 @@
 package com.apexinvest.app.ui.navigation
 
-import android.content.SharedPreferences
+import android.annotation.SuppressLint
+import android.graphics.drawable.GradientDrawable
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -57,6 +41,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.apexinvest.app.R
 import com.apexinvest.app.ui.screens.AIInvestmentIdeasScreen
 import com.apexinvest.app.ui.screens.AnalyticsScreen
 import com.apexinvest.app.ui.screens.AuthScreen
@@ -87,32 +72,22 @@ sealed class Screen(val route: String) {
     object Analytics : Screen("analytics_screen")
     object InvestmentIdeas : Screen("investment_ideas_screen")
     object Predictions : Screen("predictions_screen")
-    object Portfolio : Screen("portfolio_screen")
+    object Portfolio : Screen("portfolio_screen?action={action}") {
+        fun createRoute(action: String? = null) = if (action != null) "portfolio_screen?action=$action" else "portfolio_screen"
+    }
     object TransactionHistory : Screen("transaction_history_screen")
     object Notifications : Screen("notifications_screen")
-    object Explore : Screen("explore_screen") // 🚀 FIXED: Added missing Explore route
+    object Explore : Screen("explore_screen")
 
     object StockDetail : Screen("stock_detail/{symbol}/{currency}") {
         fun createRoute(symbol: String, currency: String) = "stock_detail/$symbol/$currency"
     }
 }
 
-// --- Bottom Tab Definitions ---
-data class BottomTabItem(val label: String, val icon: ImageVector, val route: String, val badgeCount: Int = 0)
-
 private const val TAB_HOME = "tab_home"
 private const val TAB_EXPLORE = "tab_explore"
-private const val TAB_HOLDINGS = "tab_holdings"
 private const val TAB_IDEAS = "tab_ideas"
-
-private val bottomNavItems = listOf(
-    BottomTabItem("Home", Icons.Filled.Home, TAB_HOME),
-    BottomTabItem("Explore", Icons.Filled.Search, TAB_EXPLORE),
-    BottomTabItem("Holdings", Icons.Filled.PieChart, TAB_HOLDINGS),
-    BottomTabItem("Ideas", Icons.Filled.Lightbulb, TAB_IDEAS)
-)
-
-private val BottomBarShape = RoundedCornerShape(42.dp)
+private const val TAB_PROFILE = "tab_profile"
 
 @Composable
 fun AppNavigation(
@@ -124,16 +99,14 @@ fun AppNavigation(
     exploreViewModel: ExploreViewModel,
     predictionViewModel: PredictionViewModel,
     viewModelProviderFactory: ViewModelProvider.Factory,
-    webClientId: String,
-    prefs: SharedPreferences,
     safeNavigate: (String) -> Unit,
     safePopBack: () -> Unit,
     onGoogleSignInClick: () -> Unit,
-    isConnected: Boolean
+    isConnected: Boolean,
+    isAppThemeDark: Boolean
 ) {
     val authState by authViewModel.authState.collectAsState()
 
-    // ROOT NAV HOST
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -171,23 +144,39 @@ fun AppNavigation(
                 portfolioViewModel = portfolioViewModel,
                 exploreViewModel = exploreViewModel,
                 predictionViewModel = predictionViewModel,
-                viewModelProviderFactory = viewModelProviderFactory,
                 globalNavigate = safeNavigate,
+                isConnected = isConnected,
+                isAppThemeDark = isAppThemeDark
+            )
+        }
+        composable(
+            Screen.Portfolio.route,
+            arguments = listOf(navArgument("action") { type = NavType.StringType; nullable = true })
+        ) { backStackEntry ->
+            val action = backStackEntry.arguments?.getString("action")
+            PortfolioScreen(
+                portfolioViewModel = portfolioViewModel,
+                onBack = safePopBack,
+                onNavigate = safeNavigate,
+                action = action,
                 isConnected = isConnected
             )
         }
 
-        // 🚀 These are on the ROOT NavHost, meaning the bottom bar will NOT display when routed here
-        composable(Screen.Watchlist.route) { WatchlistScreen(portfolioViewModel, safePopBack, safeNavigate, isConnected) }
+        composable(Screen.Watchlist.route)
+        { WatchlistScreen(portfolioViewModel,
+            safePopBack,
+            safeNavigate,
+            isConnected) }
+
         composable(Screen.Profile.route) {
             ProfileScreen(
                 authViewModel = authViewModel,
                 portfolioViewModel = portfolioViewModel,
                 predictionViewModel = predictionViewModel,
                 exploreViewModel = exploreViewModel,
-                onBack = safePopBack,
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } } },
-                isConnected = isConnected
+                isConnected = isConnected,
             )
         }
         composable(Screen.StockDetail.route, arguments = listOf(navArgument("symbol") { type = NavType.StringType }, navArgument("currency") { type = NavType.StringType })) { backStackEntry ->
@@ -197,8 +186,15 @@ fun AppNavigation(
             StockDetailScreen(symbol, currency, portfolioViewModel, stockDetailViewModel, safePopBack, { safeNavigate(Screen.StockDetail.createRoute(it, currency)) }, isConnected)
         }
         composable(Screen.InvestmentIdeas.route) { AIInvestmentIdeasScreen(portfolioViewModel, safePopBack, { safeNavigate(it) }, true, isConnected) }
-        composable(Screen.Predictions.route) { PredictionScreen(portfolioViewModel, predictionViewModel, safePopBack, isConnected) }
-        composable(Screen.Portfolio.route) { PortfolioScreen(portfolioViewModel, safePopBack, safeNavigate, isConnected = isConnected) }
+        composable(Screen.Predictions.route) { 
+            PredictionScreen(
+                portfolioViewModel, 
+                predictionViewModel, 
+                onBack = safePopBack,
+                onNavigateToPortfolio = { safeNavigate(Screen.Portfolio.createRoute("OPEN_TRADE")) },
+                isConnected = isConnected
+            ) 
+        }
         composable(Screen.Analytics.route) { AnalyticsScreen(portfolioViewModel, { safeNavigate(it) }, safePopBack, isConnected) }
         composable(Screen.TransactionHistory.route) { TransactionHistory(portfolioViewModel, safePopBack, isConnected) }
         composable(Screen.Notifications.route) {
@@ -213,22 +209,21 @@ fun MainScreen(
     portfolioViewModel: PortfolioViewModel,
     exploreViewModel: ExploreViewModel,
     predictionViewModel: PredictionViewModel,
-    viewModelProviderFactory: ViewModelProvider.Factory,
     globalNavigate: (String) -> Unit,
-    isConnected: Boolean
+    isConnected: Boolean,
+    isAppThemeDark: Boolean
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: TAB_HOME
 
     var isExploreSearchActive by rememberSaveable { mutableStateOf(false) }
-    val isDark = isSystemInDarkTheme()
 
     val navigateToBottomTab = { route: String ->
         if (currentRoute != route) {
             bottomNavController.navigate(route) {
-                bottomNavController.graph.findStartDestination().route?.let { startRoute ->
-                    popUpTo(startRoute) { saveState = true }
+                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                    saveState = true
                 }
                 launchSingleTop = true
                 restoreState = true
@@ -246,27 +241,25 @@ fun MainScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // 1. CONTENT LAYER
         NavHost(
             navController = bottomNavController,
             startDestination = TAB_HOME,
             modifier = Modifier.fillMaxSize(),
             enterTransition = {
-                val targetIndex = bottomNavItems.indexOfFirst { it.route == targetState.destination.route }
-                val currentIndex = bottomNavItems.indexOfFirst { it.route == initialState.destination.route }
+                val targetIndex = getTabIndex(targetState.destination.route)
+                val currentIndex = getTabIndex(initialState.destination.route)
                 val direction = if (targetIndex > currentIndex) AnimatedContentTransitionScope.SlideDirection.Left
                 else AnimatedContentTransitionScope.SlideDirection.Right
                 slideIntoContainer(direction, tween(300, easing = FastOutSlowInEasing))
             },
             exitTransition = {
-                val targetIndex = bottomNavItems.indexOfFirst { it.route == targetState.destination.route }
-                val currentIndex = bottomNavItems.indexOfFirst { it.route == initialState.destination.route }
+                val targetIndex = getTabIndex(targetState.destination.route)
+                val currentIndex = getTabIndex(initialState.destination.route)
                 val direction = if (targetIndex > currentIndex) AnimatedContentTransitionScope.SlideDirection.Left
                 else AnimatedContentTransitionScope.SlideDirection.Right
                 slideOutOfContainer(direction, tween(300, easing = FastOutSlowInEasing))
             },
             popEnterTransition = {
-                // Keep symmetrical for pops
                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
             },
             popExitTransition = {
@@ -275,12 +268,12 @@ fun MainScreen(
         ) {
             composable(TAB_HOME) {
                 DashboardScreen(
-                    authViewModel = authViewModel,
                     portfolioViewModel = portfolioViewModel,
+                    exploreViewModel = exploreViewModel,
                     onNavigate = { route ->
                         when (route) {
                             Screen.InvestmentIdeas.route -> navigateToBottomTab(TAB_IDEAS)
-                            Screen.Portfolio.route -> navigateToBottomTab(TAB_HOLDINGS)
+                            Screen.Profile.route -> navigateToBottomTab(TAB_PROFILE)
                             Screen.Explore.route -> navigateToBottomTab(TAB_EXPLORE)
                             else -> globalNavigate(route)
                         }
@@ -297,14 +290,6 @@ fun MainScreen(
                     onSearchActiveChange = { isExploreSearchActive = it }
                 )
             }
-            composable(TAB_HOLDINGS) {
-                PortfolioScreen(
-                    portfolioViewModel = portfolioViewModel,
-                    onBack = { navigateToBottomTab(TAB_HOME) },
-                    onNavigate = globalNavigate,
-                    isConnected = isConnected
-                )
-            }
             composable(TAB_IDEAS) {
                 AIInvestmentIdeasScreen(
                     portfolioViewModel = portfolioViewModel,
@@ -313,84 +298,141 @@ fun MainScreen(
                     isConnected = isConnected
                 )
             }
+            composable(TAB_PROFILE) {
+                ProfileScreen(
+                    authViewModel = authViewModel,
+                    portfolioViewModel = portfolioViewModel,
+                    predictionViewModel = predictionViewModel,
+                    exploreViewModel = exploreViewModel,
+                    onNavigateToLogin = { globalNavigate(Screen.Login.route) },
+                    isConnected = isConnected
+                )
+            }
         }
 
-        // 2. FLOATING BAR LAYER
-        CustomBottomNavigationBar(
+        XmlBottomNavigationBar(
             currentRoute = currentRoute,
-            isDark = isDark,
+            isBarThemeDark = isAppThemeDark,
             modifier = Modifier.align(Alignment.BottomCenter),
             onItemSelected = navigateToBottomTab
         )
     }
 }
 
-// --- OPTIMIZED FLOATING BOTTOM BAR ---
+private fun getTabIndex(route: String?): Int {
+    return when (route) {
+        TAB_HOME -> 0
+        TAB_EXPLORE -> 1
+        TAB_IDEAS -> 2
+        TAB_PROFILE -> 3
+        else -> 0
+    }
+}
+
+@SuppressLint("InflateParams")
 @Composable
-private fun CustomBottomNavigationBar(
+private fun XmlBottomNavigationBar(
     currentRoute: String,
-    isDark: Boolean,
+    isBarThemeDark: Boolean,
     modifier: Modifier = Modifier,
     onItemSelected: (String) -> Unit
 ) {
-    val purpleAccent = remember(isDark) { if (isDark) Color(0xFF9E86FF) else Color(0xFF673AB7) }
-    val shadowSize = remember(isDark) { if (isDark) 24.dp else 16.dp }
-    val bgColor = remember(isDark) { if (isDark) 0.85f else 0.95f }
-    val borderColor = remember(isDark) { if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.1f) }
+    val darkState = rememberUpdatedState(isBarThemeDark)
 
-    Box(
+    AndroidView(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 24.dp)
-            .height(80.dp)
-            .shadow(shadowSize, BottomBarShape, spotColor = purpleAccent.copy(alpha = 0.3f))
-            .clip(BottomBarShape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = bgColor))
-            .border(1.5.dp, borderColor, BottomBarShape)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            bottomNavItems.forEach { item ->
-                val isSelected = currentRoute == item.route
+            .padding(bottom = 24.dp)
+            .padding(horizontal =24.dp)
+            .height(89.dp),
+        factory = { context ->
+            LayoutInflater.from(context).inflate(R.layout.bottom_nav_telegram, null, false)
+        },
+        update = { view ->
+            view.findViewById<FrameLayout>(R.id.tab_home).setOnClickListener { onItemSelected(TAB_HOME) }
+            view.findViewById<FrameLayout>(R.id.tab_explore).setOnClickListener { onItemSelected(TAB_EXPLORE) }
+            view.findViewById<FrameLayout>(R.id.tab_ideas).setOnClickListener { onItemSelected(TAB_IDEAS) }
+            view.findViewById<FrameLayout>(R.id.tab_profile).setOnClickListener { onItemSelected(TAB_PROFILE) }
 
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                            onClick = { onItemSelected(item.route) }
-                        )
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) purpleAccent.copy(alpha = 0.15f) else Color.Transparent)
-                    ) {
-                        BadgedBox(
-                            badge = {
-                                if (item.badgeCount > 0) {
-                                    Badge(containerColor = purpleAccent, contentColor = Color.White) { Text(item.badgeCount.toString()) }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.label,
-                                modifier = Modifier.size(if (isSelected) 32.dp else 28.dp),
-                                tint = if (isSelected) purpleAccent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
+            val isDark = darkState.value
+
+            val purpleColor = if (isDark) "#BFABFF".toColorInt() else "#512DA8".toColorInt()
+            val unselectedColor = if (isDark) "#C8CCD5".toColorInt() else "#545454".toColorInt()
+
+            val purpleGradientTop = if (isDark)
+                android.graphics.Color.rgb(38, 37, 42) // Extremely subtle dark grey-purple
+                else
+                android.graphics.Color.rgb(240, 238, 245) // ~70% reduction in purple intensity (v. subtle light purple-grey)
+
+            val barBgColor = if (isDark)
+                android.graphics.Color.rgb(35, 35, 37) // Darkened fill color (from #3A3A3C to ~#232325)
+                else
+                android.graphics.Color.rgb(245, 245, 247) // Lightened fill color (from #E5E5EA to ~#F5F5F7)
+
+            val barBorderColor = if (isDark)
+                android.graphics.Color.argb(80, 255, 255, 255) // Darkened border (reduced white alpha to 31%)
+                else
+                android.graphics.Color.argb(30, 0, 0, 0) // Lightened border (reduced black alpha to 12%)
+
+            val activePillColor = if (isDark) "#339E86FF".toColorInt() else "#20673AB7".toColorInt()
+
+            val density = view.context.resources.displayMetrics.density
+            val pillRadius = 100f * density
+
+            view.background = null
+
+            val mainPill = view.findViewById<LinearLayout>(R.id.main_nav_pill)
+            val sideBadge = view.findViewById<FrameLayout>(R.id.tab_profile)
+
+            val mainBarDrawable = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(purpleGradientTop, barBgColor)
+            ).apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = pillRadius
+                setStroke((1.5f * density).toInt(), barBorderColor)
+            }
+            mainPill.background = mainBarDrawable
+
+            sideBadge.background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(purpleGradientTop, barBgColor)
+            ).apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = pillRadius
+                setStroke((1.5f * density).toInt(), barBorderColor)
+            }
+
+            val selectionPillDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = pillRadius
+                setColor(activePillColor)
+            }
+
+            // Updated function: textId is now nullable
+            fun updateTab(tabId: String, bgId: Int, iconId: Int, textId: Int?) {
+                val isSelected = currentRoute == tabId
+
+                val bgView = view.findViewById<View>(bgId)
+                bgView.background = selectionPillDrawable
+                bgView.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
+
+                view.findViewById<ImageView>(iconId).setColorFilter(if (isSelected) purpleColor else unselectedColor)
+
+                // Only update text properties if a textId was provided
+                if (textId != null) {
+                    val textView = view.findViewById<TextView>(textId)
+                    textView.setTextColor(if (isSelected) purpleColor else unselectedColor)
+                    textView.setTypeface(null, if (isSelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
                 }
             }
+
+            updateTab(TAB_HOME, R.id.bg_home, R.id.icon_home, R.id.text_home)
+            updateTab(TAB_EXPLORE, R.id.bg_explore, R.id.icon_explore, R.id.text_explore)
+            updateTab(TAB_IDEAS, R.id.bg_ideas, R.id.icon_ideas, R.id.text_ideas)
+
+            // Pass null for textId since the Profile tab no longer has a TextView
+            updateTab(TAB_PROFILE, R.id.bg_profile, R.id.icon_profile, null)
         }
-    }
+    )
 }

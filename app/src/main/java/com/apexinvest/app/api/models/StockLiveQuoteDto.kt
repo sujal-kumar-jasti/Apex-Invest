@@ -1,7 +1,9 @@
 package com.apexinvest.app.api.models
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 
+@Keep
 data class StockLiveQuoteDto(
     @SerializedName("symbol") val symbol: String,
     @SerializedName("price") val price: Double,

@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit
 class AppContainer(context: Context) {
 
     private val database by lazy { AppDatabase.getDatabase(context) }
-    private val prefs: SharedPreferences by lazy { context.getSharedPreferences("apex_prefs", Context.MODE_PRIVATE) }
+    private val prefs: SharedPreferences by lazy { context.getSharedPreferences("apex_invest_prefs", Context.MODE_PRIVATE) }
     val sessionManager by lazy { SessionManager(context) }
 
     private val sharedOkHttpClient by lazy {
@@ -218,10 +218,10 @@ class AppContainer(context: Context) {
             transactionDao = database.transactionDao(),
             stockCacheDao = database.stockCacheDao(),
             analysisCacheDao = database.analysisCacheDao(),
+            notificationDao = database.notificationDao(), // 🚀 ADDED
             sessionManager = sessionManager,
             authApiService = authApiService,
             yahooFinanceApiService = yahooFinanceApiService, // 🆕 Replaced liveStockApiService
-            stockApiService = stockApiService,
             currencyApiService = currencyService,
             predictionApiService = predictionApiService,
             ideasApi = ideasApi,
@@ -248,7 +248,6 @@ class AppContainer(context: Context) {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return PortfolioViewModel(
                 repository = portfolioRepository,
-                marketRepository = marketRepository,
                 notificationRepository = notificationRepository,
                 sessionManager = sessionManager,
                 prefs = prefs

@@ -1,17 +1,15 @@
 package com.apexinvest.app.viewmodel
 
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.apexinvest.app.api.models.CandlePointDto
 import com.apexinvest.app.api.models.StockSearchResult
 import com.apexinvest.app.data.PortfolioRepository
 import com.apexinvest.app.data.StockEntity
 import com.apexinvest.app.data.TransactionType
 import com.apexinvest.app.data.WatchlistEntity
-import com.apexinvest.app.data.repository.MarketRepository
 import com.apexinvest.app.data.repository.NotificationRepository
 import com.apexinvest.app.ui.components.MessageType
 import com.apexinvest.app.util.MathUtils
@@ -31,15 +29,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 data class TransactionUiModel(
@@ -48,7 +47,9 @@ data class TransactionUiModel(
     val quantityStr: String,
     val formattedDate: String,
     val totalValue: Double,
+    val totalValueStr: String,
     val convertedPrice: Double,
+    val convertedPriceStr: String,
     val isBuy: Boolean
 )
 
@@ -80,13 +81,22 @@ data class AppUiState(
     val isHydrated: Boolean = false
 )
 
+// 🚀 NEW: Data class specifically formatted for the Top Impact Drivers UI
+data class ImpactDriver(
+    val symbol: String,
+    val allocationPercent: Double,
+    val changePercent: Double,
+    val impactScore: Double // Pre-calculated allocation * return
+)
+
 sealed class AnalyticsUiState {
     object Loading : AnalyticsUiState()
     object Empty : AnalyticsUiState()
     data class Success(
         val totalValue: Double,
         val sectors: Map<String, Double>,
-        val allocations: List<StockAllocation>,
+        val topDrivers: List<ImpactDriver>, // 🚀 UI receives pre-sorted, pre-sliced data
+        val hiddenImpactCount: Int,         // 🚀 UI knows how many were skipped without receiving the list
         val topGainer: StockEntity?,
         val topLoser: StockEntity?,
         val winRate: Double,
@@ -110,7 +120,6 @@ data class UiMessage(val text: String, val type: MessageType = MessageType.INFO)
 
 class PortfolioViewModel(
     val repository: PortfolioRepository,
-    private val marketRepository: MarketRepository,
     private val notificationRepository: NotificationRepository,
     private val sessionManager: SessionManager,
     private val prefs: SharedPreferences
@@ -128,7 +137,7 @@ class PortfolioViewModel(
     private val _topSortedStocks = MutableStateFlow<List<StockEntity>>(emptyList())
     val topSortedStocks = _topSortedStocks.asStateFlow()
 
-    private val _sparklineCache = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
+    private val _sparklineCache = MutableStateFlow<Map<String, List<CandlePointDto>>>(emptyMap())
     val sparklineCache = _sparklineCache.asStateFlow()
 
     private val _aiState = MutableStateFlow<AiUiState>(AiUiState.Idle)
@@ -159,17 +168,18 @@ class PortfolioViewModel(
         viewModelScope.launch { notificationRepository.clearAll() }
     }
 
-    val isPriceUpdating = _uiState.map { it.isLoading }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialValue = false)
-    val showAddWatchlistDialog = MutableStateFlow(false)
-
     private val _isStartupComplete = MutableStateFlow(false)
     val isStartupComplete = _isStartupComplete.asStateFlow()
 
-    val transactionHistory: StateFlow<List<com.apexinvest.app.data.TransactionEntity>> = repository.getRecentTransactions(500).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val transactionHistory: StateFlow<List<com.apexinvest.app.data.TransactionEntity>> = repository.getRecentTransactions(500).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastPortfolioSignature = ""
     private var lastChartShiftTime = System.currentTimeMillis()
     private var lastRefreshTime = 0L
+
+    private var lastIsUsd = false
+    private var lastRates: Map<String, Double> = emptyMap()
+    private var lastPricesSignature = ""
 
     private val sparklineMutex = Mutex()
 
@@ -177,7 +187,7 @@ class PortfolioViewModel(
         transactionHistory,
         _uiState.map { it.isUsd }.distinctUntilChanged(),
         _uiState.map { it.rates }.distinctUntilChanged()
-    ) { history: List<com.apexinvest.app.data.TransactionEntity>, isUsd: Boolean, rates: Map<String, Double> ->
+    ) { history, isUsd, rates ->
         withContext(Dispatchers.Default) {
             var buyAcc = 0.0
             var sellAcc = 0.0
@@ -196,31 +206,51 @@ class PortfolioViewModel(
                     quantityStr = tx.quantity.toCleanString(),
                     formattedDate = dateFormatter.format(Date(tx.timestamp)),
                     totalValue = totalTxValue,
+                    totalValueStr = totalTxValue.toCleanString(),
                     convertedPrice = convertedPrice,
+                    convertedPriceStr = convertedPrice.toCleanString(),
                     isBuy = isBuy
                 )
             }
             TransactionAnalyticsState(mappedHistory = sortedAndMapped, totalBuy = buyAcc, totalSell = sellAcc, isInitial = false)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TransactionAnalyticsState())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, TransactionAnalyticsState())
 
+    // 🚀 ARCHITECTURE UPGRADE: Pre-chewed State Strategy applied here
     val analyticsState: StateFlow<AnalyticsUiState> = combine(
         portfolioStocks,
         _uiState.map { it.isUsd }.distinctUntilChanged(),
         _uiState.map { it.rates }.distinctUntilChanged()
     ) { portfolio, isUsd, rates ->
         if (portfolio.isEmpty()) return@combine AnalyticsUiState.Empty
-        withContext(Dispatchers.Default) {
+        withContext(Dispatchers.Default) { // Heavy lifting stays strictly on background thread
             val totalValue = portfolio.sumOf { com.apexinvest.app.util.getConvertedValue(it.currentPrice * it.quantity, it.symbol, isUsd, rates) }
             val (allocations, sectorMap) = MathUtils.calculateAllocations(portfolio, totalValue, isUsd, rates) { symbol -> getSectorForSymbol(symbol) }
+
+            // 1. Crunch the Impact math in O(N) once, instead of inside Compose
+            val mappedDrivers = allocations.map {
+                ImpactDriver(
+                    symbol = it.symbol,
+                    allocationPercent = it.percent,
+                    changePercent = it.changePercent,
+                    impactScore = it.percent * it.changePercent
+                )
+            }.sortedByDescending { abs(it.impactScore) }
+
+            // 2. Data Decimation: Slice list so UI only iterates over max 6 items
+            val maxVisible = 6
+            val topDrivers = mappedDrivers.take(maxVisible)
+            val hiddenCount = (mappedDrivers.size - maxVisible).coerceAtLeast(0)
+
             AnalyticsUiState.Success(
-                totalValue,
-                sectorMap,
-                allocations,
-                portfolio.maxByOrNull { it.changePercent },
-                portfolio.minByOrNull { it.changePercent },
-                (portfolio.count { it.currentPrice >= it.buyPrice }.toDouble() / portfolio.size) * 100,
-                com.apexinvest.app.util.getCurrencySymbol(if (isUsd) "USD" else "INR")
+                totalValue = totalValue,
+                sectors = sectorMap,
+                topDrivers = topDrivers,         // Passed pre-calculated
+                hiddenImpactCount = hiddenCount, // Passed metadata
+                topGainer = portfolio.maxByOrNull { it.changePercent },
+                topLoser = portfolio.minByOrNull { it.changePercent },
+                winRate = (portfolio.count { it.currentPrice >= it.buyPrice }.toDouble() / portfolio.size) * 100,
+                currencySymbol = com.apexinvest.app.util.getCurrencySymbol(if (isUsd) "USD" else "INR")
             )
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AnalyticsUiState.Loading)
@@ -228,7 +258,6 @@ class PortfolioViewModel(
     init {
         _uiState.update { it.copy(isUsd = prefs.getBoolean("is_usd_selected", false)) }
 
-        // 🚀 REAL-TIME SYNC: Listen for price updates from anywhere (WS or Yahoo)
         viewModelScope.launch {
             repository.globalPriceUpdates.collect { update ->
                 _uiState.update { state ->
@@ -245,13 +274,17 @@ class PortfolioViewModel(
                     state.copy(portfolio = updatedPortfolio, watchlist = updatedWatchlist)
                 }
 
-                // Update Sparkline Cache as well
                 _sparklineCache.update { current ->
                     val updated = current.toMutableMap()
                     val upperSym = update.symbol.uppercase()
                     val chart = updated[upperSym]?.toMutableList()
                     if (!chart.isNullOrEmpty()) {
-                        chart[chart.size - 1] = update.price
+                        val last = chart.last()
+                        chart[chart.size - 1] = last.copy(
+                            close = update.price,
+                            high = last.high.coerceAtLeast(update.price),
+                            low = last.low.coerceAtMost(update.price)
+                        )
                         updated[upperSym] = chart
                     }
                     updated
@@ -263,20 +296,40 @@ class PortfolioViewModel(
             combine(portfolioStocks, watchlistStocks) { p, w -> p to w }
                 .distinctUntilChanged { old, new ->
                     val structureMatch = old.first.size == new.first.size && old.second.size == new.second.size
-                    val pricesMatch = old.first.zip(new.first).all { (o, n) -> o.currentPrice == n.currentPrice }
+                    val pricesMatch = old.first.zip(new.first).all { (o, n) -> o.currentPrice == n.currentPrice && o.quantity == n.quantity }
                     structureMatch && pricesMatch
                 }
                 .collectLatest { (portfolio, watchlist) ->
+                    val oldPortfolio = _uiState.value.portfolio
                     _uiState.update { it.copy(portfolio = portfolio, watchlist = watchlist) }
+
+                    // 🚀 DETECT NEW SYMBOLS: If a new symbol is added, trigger a standard rolling fetch
+                    val currentSymbols = portfolio.map { it.symbol.uppercase() }.toSet()
+                    val oldSymbols = oldPortfolio.map { it.symbol.uppercase() }.toSet()
+                    val newSymbols = currentSymbols - oldSymbols
+                    
+                    if (newSymbols.isNotEmpty()) {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            newSymbols.forEach { sym ->
+                                // This uses the standard YahooParser rolling window logic used during login
+                                repository.fetchAndUpdatePrice(sym)
+                            }
+                            calculateDashboardData()
+                        }
+                    }
 
                     _sparklineCache.update { current ->
                         val updated = current.toMutableMap()
                         portfolio.forEach { stock ->
                             val chart = updated[stock.symbol]?.toMutableList()
-                            if (chart != null && chart.isNotEmpty()) {
-                                // 🚀 FIX: Only update sparkline last point if market is open
+                            if (!chart.isNullOrEmpty()) {
                                 if (com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(stock.symbol).first) {
-                                    chart[chart.size - 1] = stock.currentPrice
+                                    val last = chart.last()
+                                    chart[chart.size - 1] = last.copy(
+                                        close = stock.currentPrice,
+                                        high = last.high.coerceAtLeast(stock.currentPrice),
+                                        low = last.low.coerceAtMost(stock.currentPrice)
+                                    )
                                     updated[stock.symbol] = chart
                                 }
                             }
@@ -291,14 +344,22 @@ class PortfolioViewModel(
             val isLoggedIn = sessionManager.isLoggedIn()
             if (isLoggedIn) { _uiState.update { it.copy(isLoading = true, isHydrated = false) } }
 
+            _portfolioStats.value = null
+            _sparklineCache.value = emptyMap()
+
+            if (isLoggedIn) fetchRate()
+
             repository.hydrateSparklineCache()
             loadCachedAiInsights()
-            calculateDashboardData()
+
+            if (_uiState.value.rates.size > 1 || !isLoggedIn) {
+                calculateDashboardData()
+            }
+
             _isStartupComplete.value = true
 
             if (isLoggedIn) {
                 try {
-                    fetchRate()
                     repository.refreshMissingStockMetadata()
                     repository.fullCloudSync(forceLoginSync = false)
                     repository.syncAllDataAndPrices(forceFullRefresh = true)
@@ -317,6 +378,17 @@ class PortfolioViewModel(
         val isUsd = _uiState.value.isUsd
         val rates = _uiState.value.rates
 
+        if (isUsd && (rates.size <= 1)) return@withContext
+
+        val currencyChanged = (isUsd != lastIsUsd)
+        val ratesChanged = (rates != lastRates)
+        val currentPricesSignature = list.joinToString(",") { "${it.currentPrice}:${it.quantity}" }
+        val pricesChanged = (currentPricesSignature != lastPricesSignature)
+
+        lastIsUsd = isUsd
+        lastRates = rates
+        lastPricesSignature = currentPricesSignature
+
         if (list.isEmpty()) {
             _portfolioStats.value = null
             _topSortedStocks.value = emptyList()
@@ -330,7 +402,6 @@ class PortfolioViewModel(
 
         val currentSignature = list.joinToString("|") { "${it.symbol}:${it.quantity}" }
         val currentTime = System.currentTimeMillis()
-        val shouldShiftWindow = (currentTime - lastChartShiftTime) > 120_000
 
         sparklineMutex.withLock {
             var currentSparklines = _sparklineCache.value.toMutableMap()
@@ -338,36 +409,65 @@ class PortfolioViewModel(
 
             if (currentSignature != lastPortfolioSignature || currentSparklines.isEmpty() || isMissingSparklines) {
                 repository.prefetchSparklines(list.map { it.symbol })
-
-                currentSparklines = list.associateBy({ it.symbol }, { repository.getCachedSparklineSync(it.symbol) }).toMutableMap()
+                currentSparklines = list.associateBy({ it.symbol }, { repository.getCachedSparklineDtoSync(it.symbol) }).toMutableMap()
                 lastPortfolioSignature = currentSignature
                 lastChartShiftTime = currentTime
             } else {
                 var modified = false
                 list.forEach { stock ->
                     val chart = currentSparklines[stock.symbol]?.toMutableList()
-                    if (chart != null && chart.isNotEmpty()) {
-                        // 🚀 FIX: Only update sparkline if market is open
+                    if (!chart.isNullOrEmpty()) {
                         if (com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(stock.symbol).first) {
-                            if (shouldShiftWindow) {
-                                chart.removeAt(0)
-                                chart.add(stock.currentPrice)
-                            } else {
-                                chart[chart.size - 1] = stock.currentPrice
-                            }
+                            // 🚀 LIVE UPDATE ONLY: Stop manual window shifting (handled by Repo/YahooParser)
+                            val last = chart.last()
+                            chart[chart.size - 1] = last.copy(
+                                close = stock.currentPrice,
+                                high = last.high.coerceAtLeast(stock.currentPrice),
+                                low = last.low.coerceAtMost(stock.currentPrice)
+                            )
                             currentSparklines[stock.symbol] = chart
                             modified = true
                         }
                     }
                 }
-                if (shouldShiftWindow) lastChartShiftTime = currentTime
-                if (!modified) return@withContext
+                if (!modified && !currencyChanged && !ratesChanged && !pricesChanged) return@withContext
             }
 
             val newStats = MathUtils.calculatePortfolioStats(list, isUsd, rates, currentSparklines)
+
+            // 🚀 ARCHITECTURE UPGRADE: Downsample Chart Data (Strategy 3)
+            // If the data set exceeds 150 points, mathematically buckle it to avoid overwhelming the Canvas UI.
+            val maxCanvasPoints = 150
+            val optimizedChartData = if (newStats.chartData.size > maxCanvasPoints) {
+                downsampleChartData(newStats.chartData, maxCanvasPoints)
+            } else {
+                newStats.chartData
+            }
+
             _sparklineCache.value = currentSparklines
-            _portfolioStats.value = newStats
+            _portfolioStats.value = newStats.copy(chartData = optimizedChartData)
         }
+    }
+
+    // 🚀 NEW: Fast decimation algorithm ensuring O(N) smooth downsampling for UI rendering
+    private fun downsampleChartData(data: List<Double>, targetSize: Int): List<Double> {
+        if (data.isEmpty() || targetSize <= 0) return emptyList()
+        val result = ArrayList<Double>(targetSize)
+        val bucketSize = data.size.toDouble() / targetSize
+
+        for (i in 0 until targetSize) {
+            val startIndex = (i * bucketSize).toInt()
+            val endIndex = ((i + 1) * bucketSize).toInt().coerceAtMost(data.size)
+
+            if (startIndex >= endIndex) continue
+
+            var sum = 0.0
+            for (j in startIndex until endIndex) {
+                sum += data[j]
+            }
+            result.add(sum / (endIndex - startIndex)) // Average of bucket
+        }
+        return result
     }
 
     private suspend fun fetchRate() {
@@ -386,7 +486,6 @@ class PortfolioViewModel(
             updateJob = viewModelScope.launch(Dispatchers.IO) {
                 while (isActive) {
                     fastRefreshLivePrices()
-                    // 🚀 Snappier Dashboard: Poll every 5s instead of 8s (matches the 4s cache TTL in repository)
                     delay(5000.milliseconds)
                 }
             }
@@ -428,16 +527,13 @@ class PortfolioViewModel(
                 repository.fullCloudSync(forceLoginSync = true)
                 repository.refreshMissingStockMetadata()
                 repository.syncAllDataAndPrices(forceFullRefresh = true)
-                delay(800)
+                delay(800.milliseconds)
                 calculateDashboardData()
             } finally {
                 _uiState.update { it.copy(isLoading = false, isHydrated = true) }
             }
         }
     }
-
-    fun loadCurrentPrice(s: String) { viewModelScope.launch(Dispatchers.IO) { repository.fetchLivePriceOnly(s) } }
-    fun loadStockChart(symbol: String, range: String = "1d") = flow { emit(repository.fetchChartOnly(symbol, range)) }
 
     fun toggleCurrency() {
         val newIsUsd = !_uiState.value.isUsd
@@ -455,34 +551,33 @@ class PortfolioViewModel(
         }
     }
 
-    fun deleteStock(stock: StockEntity) { viewModelScope.launch(Dispatchers.IO) { repository.deletePortfolioStock(stock.symbol) } }
     fun addWatchlistStock(symbol: String) { viewModelScope.launch(Dispatchers.IO) { repository.addStockToWatchlist(symbol) } }
     fun deleteWatchlistStock(symbol: String) { viewModelScope.launch(Dispatchers.IO) { repository.deleteWatchlistStock(symbol) } }
 
     private val _searchResults = MutableStateFlow<List<StockSearchResult>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
-    
+
     private var searchJob: Job? = null
-    
+
     fun searchStocks(query: String) {
-        if (query.length < 2) { 
+        if (query.length < 2) {
             searchJob?.cancel()
             _searchResults.value = emptyList()
-            return 
+            return
         }
-        
+
         searchJob?.cancel()
         searchJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(400) // 🚀 Debounce: Wait for 400ms gap in typing
+            delay(400.milliseconds)
             if (isActive) {
                 _searchResults.value = repository.searchStocks(query)
             }
         }
     }
 
-    fun clearSearchResults() { 
+    fun clearSearchResults() {
         searchJob?.cancel()
-        _searchResults.value = emptyList() 
+        _searchResults.value = emptyList()
     }
 
     private fun getPortfolioSignature(portfolio: List<StockEntity>): String {
@@ -495,7 +590,6 @@ class PortfolioViewModel(
             val isThematic = !theme.isNullOrBlank()
             val stateToUpdate = if (isThematic) _thematicState else _aiState
 
-            // 1. EMPTY PORTFOLIO GUARD
             if (!isThematic && explicitStocks.isEmpty()) {
                 stateToUpdate.value = AiUiState.Error("Add stocks to your portfolio to generate personalized AI strategies!")
                 return@launch
@@ -530,14 +624,13 @@ class PortfolioViewModel(
                 val parsedState = parseAiResponse(result)
                 stateToUpdate.value = parsedState
 
-                // ✅ 2. POST-SUCCESS SAVE: Only commit cache if server responded with real data
                 if (parsedState is AiUiState.Success && !isThematic) {
                     repository.saveAiInsights("AI_PORTFOLIO_IDEAS", result)
                     prefs.edit(commit = true) { putString("last_ai_portfolio_sig", currentSig) }
                 } else if (parsedState is AiUiState.Error && !isThematic) {
                     prefs.edit(commit = true) { remove("last_ai_portfolio_sig") }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 stateToUpdate.value = AiUiState.Error("Network error. Tap to retry.")
                 if (!isThematic) prefs.edit(commit = true) { remove("last_ai_portfolio_sig") }
             }
@@ -554,7 +647,6 @@ class PortfolioViewModel(
         }
     }
 
-    // 🛡️ 3. FALLBACK INTERCEPTOR: Do not let offline text pretend to be a Success
     private fun parseAiResponse(response: String): AiUiState {
         if (response.contains("Offline Mode: Unable to reach server", ignoreCase = true)) {
             return AiUiState.Error("Currently offline. Waiting for connection to generate AI insights...")
@@ -581,7 +673,6 @@ class PortfolioViewModel(
         }
     }
 
-    // 🚀 4. NEW: Dedicated Auto-Heal hook for your UI to call on reconnection
     fun autoHealAI(lastThemeSearched: String? = null) {
         val currentAIState = _aiState.value
         if (currentAIState is AiUiState.Error && !currentAIState.message.contains("Add stocks", ignoreCase = true)) {
@@ -605,7 +696,6 @@ class PortfolioViewModel(
     fun getSectorForSymbol(s: String) = portfolioStocks.value.find { it.symbol == s }?.sector ?: watchlistStocks.value.find { it.symbol == s }?.sector ?: "Other"
     fun getCachedSparkline(s: String): List<Double> = repository.getCachedSparklineSync(s)
 
-    fun loadTransactionHistory() {}
     fun deleteSelectedTransactions(ids: Set<Int>) { viewModelScope.launch(Dispatchers.IO) { val history = repository.getAllTransactionHistory().first(); history.filter { it.id in ids }.forEach { repository.deleteTransaction(it) } } }
 
     fun clearAllData() {
@@ -617,20 +707,21 @@ class PortfolioViewModel(
             _sparklineCache.value = emptyMap()
             _aiState.value = AiUiState.Idle
             _thematicState.value = AiUiState.Idle
+            _uiMessage.value = null // 🚀 ADDED
             lastPortfolioSignature = ""
-            prefs.edit(commit = true) { remove("last_ai_portfolio_sig") }
+            prefs.edit(commit = true) { 
+                remove("last_ai_portfolio_sig")
+                remove("theme_mode") // 🚀 Optional: Reset theme on full wipe
+                remove("is_usd_selected")
+            }
         }
     }
 
-    fun deleteUserAccount() { clearAllData() }
     fun clearMessage() { _uiMessage.value = null }
     fun showMessage(msg: String, type: MessageType = MessageType.INFO) { _uiMessage.value = UiMessage(msg, type) }
     fun refreshPricesAndGenerateCsv() = flow { repository.syncAllDataAndPrices(); emit(repository.generatePortfolioCsv()) }
 
-    companion object {
-        fun Factory(repository: PortfolioRepository, marketRepository: MarketRepository, notificationRepository: NotificationRepository, sessionManager: SessionManager, prefs: SharedPreferences) = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST") override fun <T : ViewModel> create(modelClass: Class<T>): T = PortfolioViewModel(repository, marketRepository, notificationRepository, sessionManager, prefs) as T
-        }
-    }
+    companion object
+
     fun onAppResumed() { forceRefresh() }
 }

@@ -60,7 +60,7 @@ object MarketCheck {
                         totalChange += change
 
                         // Check for major move alert (> 5%)
-                        if (Math.abs(change) >= 5.0 && !isTestMode) {
+                        if (abs(change) >= 5.0 && !isTestMode) {
                             notificationService?.sendPriceAlert(stock.symbol, price, change)
                         }
 
@@ -227,7 +227,7 @@ object MarketCheck {
 
     private fun showPremiumNotification(
         context: Context,
-        title: String,
+        @Suppress("SameParameterValue") title: String,
         inboxStyle: NotificationCompat.InboxStyle,
         totalStocks: Int
     ) {

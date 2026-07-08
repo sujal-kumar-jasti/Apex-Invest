@@ -1,21 +1,26 @@
 package com.apexinvest.app.api.models.yahoo
 
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 
+@Keep
 data class YahooChartResponse(
     @SerializedName("chart") val chart: YahooChartResultWrapper?
 )
 
+@Keep
 data class YahooChartResultWrapper(
     @SerializedName("result") val result: List<YahooChartData>?
 )
 
+@Keep
 data class YahooChartData(
     @SerializedName("meta") val meta: YahooChartMeta?,
     @SerializedName("timestamp") val timestamp: List<Long>?,
     @SerializedName("indicators") val indicators: YahooIndicators?
 )
 
+@Keep
 data class YahooChartMeta(
     @SerializedName("symbol") val symbol: String?,
     @SerializedName("regularMarketPrice") val regularMarketPrice: Double?,
@@ -55,10 +60,12 @@ data class YahooChartMeta(
         }
 }
 
+@Keep
 data class YahooIndicators(
     @SerializedName("quote") val quote: List<YahooQuote>?
 )
 
+@Keep
 data class YahooQuote(
     @SerializedName("open") val open: List<Double?>?,
     @SerializedName("close") val close: List<Double?>?,
@@ -68,15 +75,18 @@ data class YahooQuote(
 )
 
 // 🚀 Lightweight Quote Models (v7/finance/quote)
+@Keep
 data class YahooQuoteResponse(
     @SerializedName("quoteResponse") val quoteResponse: YahooQuoteResultWrapper?
 )
 
+@Keep
 data class YahooQuoteResultWrapper(
     @SerializedName("result") val result: List<YahooQuoteData>?,
     @SerializedName("error") val error: Any? = null
 )
 
+@Keep
 data class YahooQuoteData(
     @SerializedName("symbol") val symbol: String,
     @SerializedName("regularMarketPrice") val regularMarketPrice: Double?,

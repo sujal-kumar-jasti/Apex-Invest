@@ -429,7 +429,7 @@ fun PremiumForecastChart(
                             try {
                                 val zdt = ZonedDateTime.parse(rawDate).withZoneSameInstant(zoneId)
                                 drawText(textMeasurer, zdt.format(displayFormatter), Offset(0f, h + 10f), footerStyle)
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 drawText(textMeasurer, rawDate, Offset(0f, h + 10f), footerStyle)
                             }
                         }
@@ -440,7 +440,7 @@ fun PremiumForecastChart(
                             try {
                                 val zdt = ZonedDateTime.parse(rawDate).withZoneSameInstant(zoneId)
                                 drawText(textMeasurer, zdt.format(displayFormatter), Offset(w - 80f, h + 10f), footerStyle)
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 drawText(textMeasurer, rawDate, Offset(w - 40f, h + 10f), footerStyle)
                             }
                         }

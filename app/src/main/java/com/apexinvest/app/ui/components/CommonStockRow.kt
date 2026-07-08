@@ -38,9 +38,9 @@ fun CommonStockRow(
     price: Double,
     percentChange: Double,
     isUsd: Boolean,
-    modifier: Modifier = Modifier, // Always expose a modifier for parent control
-    historyData: List<Double> = emptyList(), // Tip: Use ImmutableList here if possible
-    isDark: Boolean = true, // Removed luminance() default to save calculation time
+    modifier: Modifier = Modifier,
+    historyData: List<Double> = emptyList(),
+    isDark: Boolean = true,
     quantity: Double? = null,
     onDelete: (() -> Unit)? = null,
     onClick: () -> Unit

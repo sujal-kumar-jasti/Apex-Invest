@@ -1,20 +1,20 @@
 package com.apexinvest.app.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,21 +32,18 @@ import java.util.Locale
 import kotlin.math.abs
 
 @Composable
-fun AppCard(
-    modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = shape,
-        color = containerColor
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            content()
-        }
-    }
+fun rememberShimmerAlpha(): Float {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "alpha",
+    )
+    return alpha
 }
 
 @Composable
@@ -64,7 +61,7 @@ fun AppTickerText(
     val signPrefix = remember(value, showExplicitSign) {
         when {
             value < 0 -> "-"
-            showExplicitSign && value > 0 -> "+"
+            (showExplicitSign && value > 0) -> "+"
             else -> ""
         }
     }
@@ -94,22 +91,25 @@ fun AppTickerText(
 
 @Composable
 fun AppSparkline(data: List<Double>, color: Color, modifier: Modifier = Modifier) {
-    if (data.size < 2) return
+    if (data.isEmpty()) return
+
+    // 🚀 Robustness: If only one point, create a horizontal line
+    val plotData = if (data.size == 1) listOf(data[0], data[0]) else data
 
     // 🚀 OPTIMIZATION: Use drawWithCache to cache the Path object.
     // This prevents allocating a new Path on every single draw frame (e.g. during scroll).
     Spacer(
         modifier = modifier.drawWithCache {
             val path = Path()
-            val max = data.maxOrNull() ?: 1.0
-            val min = data.minOrNull() ?: 0.0
+            val max = plotData.maxOrNull() ?: 1.0
+            val min = plotData.minOrNull() ?: 0.0
             val range = (max - min).coerceAtLeast(0.001)
             
             val w = size.width
             val h = size.height
-            val step = w / (data.size - 1)
+            val step = w / (plotData.size - 1)
 
-            data.forEachIndexed { i, v ->
+            plotData.forEachIndexed { i, v ->
                 val x = i * step
                 val y = (h - ((v - min) / range * h)).toFloat()
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
@@ -127,18 +127,6 @@ fun AppSparkline(data: List<Double>, color: Color, modifier: Modifier = Modifier
                 )
             }
         }
-    )
-}
-
-@Composable
-fun AppSkeleton(
-    modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(12.dp)
-) {
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     )
 }
 

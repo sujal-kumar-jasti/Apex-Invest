@@ -72,10 +72,8 @@ import com.apexinvest.app.util.getCurrencySymbol
 import com.apexinvest.app.util.guessCurrencyFromSymbol
 import com.apexinvest.app.util.toCleanString
 import com.apexinvest.app.viewmodel.PortfolioViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -86,38 +84,45 @@ fun PortfolioScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
     initialStockToBuy: String? = null,
+    action: String? = null, // 🚀 ADDED
     isConnected: Boolean
 ) {
     BackHandler { onBack() }
 
     val state by portfolioViewModel.uiState.collectAsStateWithLifecycle()
+    val portfolioStats by portfolioViewModel.portfolioStats.collectAsStateWithLifecycle()
     val searchResults by portfolioViewModel.searchResults.collectAsStateWithLifecycle()
     val portfolioList by portfolioViewModel.portfolioStocks.collectAsStateWithLifecycle()
     val sparklineCache by portfolioViewModel.sparklineCache.collectAsStateWithLifecycle()
 
     var isManualRefreshing by remember { mutableStateOf(false) }
+    var canRenderHeavyList by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf(initialStockToBuy ?: "") }
-    var showTradeSheet by remember { mutableStateOf(initialStockToBuy != null) }
-    var canRenderHeavyList by rememberSaveable{ mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (!canRenderHeavyList) {
-            delay(350)
-            canRenderHeavyList = true
-        }
-    }
+    var showTradeSheet by remember { mutableStateOf(false) }
 
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val meshBrush = remember(isDark) { Brush.verticalGradient(listOf(BrandPurple.copy(alpha = if (isDark) 0.12f else 0.05f), Color.Transparent)) }
     val pullRefreshState = rememberPullToRefreshState()
+
+    // 🚀 FIX: Deferred rendering to prevent navigation jank (matching Ideas screen logic)
+    LaunchedEffect(Unit) {
+        if (!canRenderHeavyList) {
+            delay(350.milliseconds)
+            canRenderHeavyList = true
+        }
+        if (initialStockToBuy != null || action == "OPEN_TRADE") {
+            showTradeSheet = true
+        }
+    }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isConnected) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME && isConnected) {
                 scope.launch {
-                    delay(400)
+                    delay(400.milliseconds)
                     portfolioViewModel.forceRefresh()
                     portfolioViewModel.startPeriodicUpdates()
                 }
@@ -132,70 +137,79 @@ fun PortfolioScreen(
         }
     }
 
-    var headerStats by remember { mutableStateOf<HeaderStats?>(null) }
-    LaunchedEffect(portfolioList, state.isUsd, state.liveRate) {
-        headerStats = withContext(Dispatchers.Default) {
-            val totalVal = portfolioList.sumOf { getConvertedValue(it.currentPrice * it.quantity, it.symbol, state.isUsd, state.rates) }
-            val investedVal = portfolioList.sumOf { getConvertedValue(it.buyPrice * it.quantity, it.symbol, state.isUsd, state.rates) }
-            val totalPrevVal = portfolioList.sumOf {
-                val p = if (it.previousClose > 0.0) it.previousClose else it.currentPrice
-                getConvertedValue(p * it.quantity, it.symbol, state.isUsd, state.rates)
-            }
-            HeaderStats(totalVal, investedVal, totalVal - totalPrevVal)
-        }
-    }
+    Box(modifier = Modifier.fillMaxSize().background(meshBrush)) {
+        Column(modifier = Modifier.fillMaxSize()) {
 
-    Column(modifier = Modifier.fillMaxSize().background(meshBrush)) {
-        headerStats?.let { stats ->
-            GlassWalletHeaderCard(
-                totalVal = stats.totalVal,
-                investedVal = stats.investedVal,
-                dailyGain = stats.dailyGain,
-                isUsd = state.isUsd,
-                isDark = isDark,
-                isConnected = isConnected,
-                onCurrencyToggle = { portfolioViewModel.toggleCurrency() },
-                onAddClick = { portfolioViewModel.clearSearchResults(); searchQuery = ""; showTradeSheet = true },
-                onHistoryClick = { onNavigate(Screen.TransactionHistory.route) }
-            )
-        } ?: Box(modifier = Modifier.fillMaxWidth().height(220.dp).padding(16.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(32.dp)))
+            // 🚀 USE VIEWMODEL STATS DIRECTLY TO PREVENT POP-IN JANK
+            portfolioStats?.let { stats ->
+                GlassWalletHeaderCard(
+                    totalVal = stats.totalValue,
+                    investedVal = stats.totalInvested,
+                    dailyGain = stats.dailyGain,
+                    isUsd = state.isUsd,
+                    isDark = isDark,
+                    isConnected = isConnected,
+                    onCurrencyToggle = { portfolioViewModel.toggleCurrency() },
+                    onAddClick = { portfolioViewModel.clearSearchResults(); searchQuery = ""; showTradeSheet = true },
+                    onHistoryClick = { onNavigate(Screen.TransactionHistory.route) }
+                )
+            } ?: Box(modifier = Modifier.fillMaxWidth().statusBarsPadding().height(220.dp).padding(horizontal = 20.dp, vertical = 10.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(32.dp)))
 
-        Text("HOLDINGS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp))
+            // 🚀 RENDER HOLDINGS TITLE IMMEDIATELY
+            Text("HOLDINGS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
 
-        // Only draw the heavy list if the animation is finished
-        if (canRenderHeavyList) {
-            PullToRefreshBox(
-                isRefreshing = isManualRefreshing,
-                onRefresh = { scope.launch { isManualRefreshing = true; try { portfolioViewModel.loadPortfolioAndPrices(); delay(500.milliseconds) } finally { isManualRefreshing = false } } },
-                state = pullRefreshState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                indicator = { PullToRefreshDefaults.Indicator(modifier = Modifier.align(Alignment.TopCenter), isRefreshing = isManualRefreshing, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, color = BrandPurple, state = pullRefreshState) }
-            ) {
-                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 0.dp, bottom = 140.dp)) {
-                    if (portfolioList.isEmpty() && !state.isLoading) {
-                        item { EmptyPortfolioView() }
-                    } else {
-                        items(portfolioList, key = { it.symbol }) { stock ->
-                            // 🌟 OPTIMIZATION: Memoize string operations inside the list so they don't block scroll passes
-                            val companyName = remember(stock.symbol) { portfolioViewModel.getCompanyNameForSymbol(stock.symbol) }
-                            val passCurrency = remember(stock.symbol) { guessCurrencyFromSymbol(stock.symbol) }
-                            val historyData = sparklineCache[stock.symbol] ?: emptyList()
-                            val convertedPrice = remember(stock.currentPrice, state.isUsd, state.rates) { getConvertedValue(stock.currentPrice, stock.symbol, state.isUsd, state.rates) }
+            if (canRenderHeavyList) {
+                PullToRefreshBox(
+                    isRefreshing = isManualRefreshing,
+                    onRefresh = { scope.launch { isManualRefreshing = true; try { portfolioViewModel.loadPortfolioAndPrices(); delay(500.milliseconds) } finally { isManualRefreshing = false } } },
+                    state = pullRefreshState,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    indicator = { PullToRefreshDefaults.Indicator(modifier = Modifier.align(Alignment.TopCenter), isRefreshing = isManualRefreshing, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, color = BrandPurple, state = pullRefreshState) }
+                ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 0.dp, bottom = 140.dp)) {
+                        if (portfolioList.isEmpty() && !state.isLoading) {
+                            item { 
+                                EmptyPortfolioView(
+                                    onAddClick = { 
+                                        portfolioViewModel.clearSearchResults()
+                                        searchQuery = ""
+                                        showTradeSheet = true 
+                                    }
+                                ) 
+                            }
+                        } else {
+                            items(portfolioList, key = { it.symbol }) { stock ->
+                                val companyName = remember(stock.symbol) { portfolioViewModel.getCompanyNameForSymbol(stock.symbol) }
+                                val passCurrency = remember(stock.symbol) { guessCurrencyFromSymbol(stock.symbol) }
+                                val historyData = sparklineCache[stock.symbol]?.map { it.close } ?: emptyList()
+                                val convertedPrice = remember(stock.currentPrice, state.isUsd, state.rates) { getConvertedValue(stock.currentPrice, stock.symbol, state.isUsd, state.rates) }
 
-                            Box(Modifier.animateItem().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                                CommonStockRow(
-                                    symbol = stock.symbol, companyName = companyName, price = convertedPrice, percentChange = stock.changePercent,
-                                    isUsd = state.isUsd, historyData = historyData, isDark = isDark, quantity = stock.quantity,
-                                    onDelete = { portfolioViewModel.executeTrade(stock.symbol, false, stock.quantity.toString(), stock.currentPrice.toString(), LocalDate.now().toString()) }
-                                ) { onNavigate(Screen.StockDetail.createRoute(stock.symbol, passCurrency)) }
+                                Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                                    CommonStockRow(
+                                        symbol = stock.symbol, companyName = companyName, price = convertedPrice, percentChange = stock.changePercent,
+                                        isUsd = state.isUsd, historyData = historyData, isDark = isDark, quantity = stock.quantity,
+                                        onDelete = { portfolioViewModel.executeTrade(stock.symbol, false, stock.quantity.toString(), stock.currentPrice.toString(), LocalDate.now().toString()) }
+                                    ) { onNavigate(Screen.StockDetail.createRoute(stock.symbol, passCurrency)) }
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                // Smooth shimmer placeholder during transition
+                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+                    repeat(5) {
+                        val alpha = com.apexinvest.app.ui.components.rememberShimmerAlpha()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(85.dp)
+                                .padding(vertical = 6.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(24.dp))
+                        )
+                    }
+                }
             }
-        } else {
-            // Placeholder while animating
-            Spacer(Modifier.weight(1f))
         }
 
         if (showTradeSheet) {
@@ -214,6 +228,7 @@ fun PortfolioScreen(
         }
     }
 }
+
 @Composable
 fun GlassWalletHeaderCard(
     totalVal: Double,
@@ -227,7 +242,6 @@ fun GlassWalletHeaderCard(
     onHistoryClick: () -> Unit
 ) {
     val totalGain = totalVal - investedVal
-    val totalGainPct = if (investedVal > 0) (totalGain / investedVal) * 100 else 0.0
     val isPos = totalGain >= 0
 
     val isDailyPos = dailyGain >= 0
@@ -242,7 +256,7 @@ fun GlassWalletHeaderCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (isConnected) Modifier.statusBarsPadding() else Modifier)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 20.dp, vertical = 10.dp)
             .shadow(if (isDark) 12.dp else 4.dp, RoundedCornerShape(32.dp), spotColor = BrandPurple.copy(alpha = 0.15f))
             .glassCard(isDark, RoundedCornerShape(32.dp))
     ) {
@@ -301,26 +315,31 @@ fun GlassWalletHeaderCard(
 }
 
 @Composable
-fun EmptyPortfolioView() {
+fun EmptyPortfolioView(onAddClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 20.dp)
-            .height(140.dp)
+            .height(180.dp) // 🚀 Slightly taller for button
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(36.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+            Icon(Icons.Default.AccountBalanceWallet, null, tint = BrandPurple.copy(alpha = 0.5f), modifier = Modifier.size(40.dp))
             Spacer(Modifier.height(12.dp))
-            Text("No active holdings found.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+            Text("No active holdings found.", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("Start building your wealth today.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.Button(
+                onClick = onAddClick,
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = BrandPurple)
+            ) {
+                Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Add Your First Trade", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
-
-data class HeaderStats(
-    val totalVal: Double,
-    val investedVal: Double,
-    val dailyGain: Double
-)

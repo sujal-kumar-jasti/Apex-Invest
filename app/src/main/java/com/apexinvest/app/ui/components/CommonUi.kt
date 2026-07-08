@@ -18,7 +18,7 @@ fun TabLoadingPlaceholder() {
             .fillMaxWidth()
             .height(200.dp)
             .padding(24.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator(color = BrandPurple, strokeWidth = 2.dp)
     }

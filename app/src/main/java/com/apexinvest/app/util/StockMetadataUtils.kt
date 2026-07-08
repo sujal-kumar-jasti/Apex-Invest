@@ -122,12 +122,13 @@ object StockMetadataUtils {
         val closeTime = LocalTime.parse(info.closeTime)
         val currentTime = now.toLocalTime()
         
-        val isOpen = currentTime >= openTime && currentTime <= closeTime
+        val isOpen = currentTime in openTime..closeTime
         
         if (isOpen && info.lunchStart != null && info.lunchEnd != null) {
             val lunchStart = LocalTime.parse(info.lunchStart)
             val lunchEnd = LocalTime.parse(info.lunchEnd)
-            if (currentTime >= lunchStart && currentTime <= lunchEnd) {
+            if (
+                currentTime in lunchStart..lunchEnd) {
                 return false to "Market Closed (Lunch Break - ${info.name})"
             }
         }
@@ -152,7 +153,7 @@ object StockMetadataUtils {
         val currentTime = now.toLocalTime()
         
         // 1. Regular market is open
-        if (currentTime >= openTime && currentTime <= closeTime) return true
+        if (currentTime in openTime..closeTime) return true
         
         // 2. Grace period after close (to fetch final close price)
         val gracePeriodEnd = closeTime.plusMinutes(graceMinutes)
@@ -162,7 +163,7 @@ object StockMetadataUtils {
         if (!symbol.contains(".")) {
             val preMarketStart = LocalTime.of(4, 0)
             val postMarketEnd = LocalTime.of(20, 0)
-            if (currentTime >= preMarketStart && currentTime <= postMarketEnd) return true
+            if (currentTime in preMarketStart..postMarketEnd) return true
         }
         
         return false
@@ -178,11 +179,6 @@ object StockMetadataUtils {
         val tvExchange = info.tvPrefix.uppercase()
         return "${symbol.uppercase()}:$tvExchange"
     }
-
-    /**
-     * Legacy Alias for getFormattedSymbol
-     */
-    fun getTradingViewSymbol(symbol: String): String = getFormattedSymbol(symbol)
 
     /**
      * Determines if a new trading session has started since the last update.

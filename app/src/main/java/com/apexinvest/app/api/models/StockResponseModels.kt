@@ -1,56 +1,60 @@
 package com.apexinvest.app.api.models
 
+import androidx.annotation.Keep
 import com.apexinvest.app.data.model.StockNews
 import com.google.gson.annotations.SerializedName
 
 // ==========================================
 // 1. MASTER UI MODEL (Unified App Domain Model)
 // ==========================================
+@Keep
 data class StockDetailsResponse(
-    val ticker: String,
-    val companyName: String?,
-    val sector: String?,
-    val industry: String?,
-    val assetType: String?,
-    val logoId: String?,
-    val employeeCount: Double?,
-    val country: String?,
+    @SerializedName("ticker") val ticker: String,
+    @SerializedName("companyName") val companyName: String?,
+    @SerializedName("sector") val sector: String?,
+    @SerializedName("industry") val industry: String?,
+    @SerializedName("assetType") val assetType: String?,
+    @SerializedName("logoId") val logoId: String?,
+    @SerializedName("employeeCount") val employeeCount: Double?,
+    @SerializedName("country") val country: String?,
 
-    val marketPricing: MarketPricing? = null,
-    val valuationMultipliers: ValuationMultipliers? = null,
-    val incomeStatement: IncomeStatement? = null,
-    val balanceSheet: BalanceSheet? = null,
-    val cashFlows: CashFlows? = null,
-    val efficiencyMargins: EfficiencyMargins? = null,
-    val historicalReturns: HistoricalReturns? = null,
-    val advancedTechnicals: AdvancedTechnicals? = null,
-    val analystCoverage: AnalystCoverage? = null,
-    val advancedRiskMetrics: AdvancedRiskMetrics? = null,
+    @SerializedName("marketPricing") val marketPricing: MarketPricing? = null,
+    @SerializedName("valuationMultipliers") val valuationMultipliers: ValuationMultipliers? = null,
+    @SerializedName("incomeStatement") val incomeStatement: IncomeStatement? = null,
+    @SerializedName("balanceSheet") val balanceSheet: BalanceSheet? = null,
+    @SerializedName("cashFlows") val cashFlows: CashFlows? = null,
+    @SerializedName("efficiencyMargins") val efficiencyMargins: EfficiencyMargins? = null,
+    @SerializedName("historicalReturns") val historicalReturns: HistoricalReturns? = null,
+    @SerializedName("advancedTechnicals") val advancedTechnicals: AdvancedTechnicals? = null,
+    @SerializedName("analystCoverage") val analystCoverage: AnalystCoverage? = null,
+    @SerializedName("advancedRiskMetrics") val advancedRiskMetrics: AdvancedRiskMetrics? = null,
 
-    val rangeChangeAbsolute: Double? = null,
-    val rangeChangePercent: Double? = null,
+    @SerializedName("rangeChangeAbsolute") val rangeChangeAbsolute: Double? = null,
+    @SerializedName("rangeChangePercent") val rangeChangePercent: Double? = null,
 
-    val candles: List<CandlePoint> = emptyList(),
-    val news: List<StockNews> = emptyList(),
-    val similarStocks: List<SimilarStock> = emptyList(),
-    val aiAnalystReport: String? = null
+    @SerializedName("candles") val candles: List<CandlePoint> = emptyList(),
+    @SerializedName("news") val news: List<StockNews> = emptyList(),
+    @SerializedName("similarStocks") val similarStocks: List<SimilarStock> = emptyList(),
+    @SerializedName("aiAnalystReport") val aiAnalystReport: String? = null
 )
 
 // ==========================================
 // 2. CHART DATA (Domain Model)
 // ==========================================
+@Keep
 data class CandlePoint(
-    val time: String,
-    val open: Double,
-    val high: Double,
-    val low: Double,
-    val close: Double,
-    val volume: Long
+    @SerializedName("time") val time: String,
+    @SerializedName("open") val open: Double,
+    @SerializedName("high") val high: Double,
+    @SerializedName("low") val low: Double,
+    @SerializedName("close") val close: Double,
+    @SerializedName("volume") val volume: Long
 )
 
 // ==========================================
 // 3. MARKET PRICING & VOLUME (/market)
 // ==========================================
+@Keep
 data class MarketPricing(
     @SerializedName("Price_Last") val priceLast: Double?,
     @SerializedName("Price_Open") val priceOpen: Double?,
@@ -58,7 +62,7 @@ data class MarketPricing(
     @SerializedName("Price_Low") val priceLow: Double?,
     @SerializedName("Change_Pct_1D") val changePct1D: Double?,
     @SerializedName("Change_Absolute_1D") val changeAbsolute1D: Double?,
-    val previousClose: Double = 0.0,
+    @SerializedName("previousClose") val previousClose: Double = 0.0,
     @SerializedName("High_52Week") val high52Week: Double?,
     @SerializedName("Low_52Week") val low52Week: Double?,
     @SerializedName("Volume_Current") val volumeCurrent: Double?,
@@ -71,17 +75,18 @@ data class MarketPricing(
     @SerializedName("Beta_5Y") val beta5Y: Double?,
 
     // 🚀 Extended Hours Data
-    val preMarketPrice: Double? = null,
-    val preMarketChange: Double? = null,
-    val postMarketPrice: Double? = null,
-    val postMarketChange: Double? = null,
-    val marketState: String? = null, // 🚀 "REGULAR", "PRE", "POST", "CLOSED"
-    val hasPrePost: Boolean = true
+    @SerializedName("preMarketPrice") val preMarketPrice: Double? = null,
+    @SerializedName("preMarketChange") val preMarketChange: Double? = null,
+    @SerializedName("postMarketPrice") val postMarketPrice: Double? = null,
+    @SerializedName("postMarketChange") val postMarketChange: Double? = null,
+    @SerializedName("marketState") val marketState: String? = null,
+    @SerializedName("hasPrePost") val hasPrePost: Boolean = true
 )
 
 // ==========================================
 // 4. VALUATION MULTIPLIERS (/valuation)
 // ==========================================
+@Keep
 data class ValuationMultipliers(
     @SerializedName("Market_Cap") val marketCap: Double?,
     @SerializedName("Enterprise_Value") val enterpriseValue: Double?,
@@ -98,6 +103,7 @@ data class ValuationMultipliers(
 // ==========================================
 // 5. INCOME STATEMENT (/income)
 // ==========================================
+@Keep
 data class IncomeStatement(
     @SerializedName("Revenue_TTM") val revenueTtm: Double?,
     @SerializedName("Revenue_Quarterly") val revenueQuarterly: Double?,
@@ -117,6 +123,7 @@ data class IncomeStatement(
 // ==========================================
 // 6. BALANCE SHEET (/balance-sheet)
 // ==========================================
+@Keep
 data class BalanceSheet(
     @SerializedName("Total_Assets") val totalAssets: Double?,
     @SerializedName("Total_Liabilities") val totalLiabilities: Double?,
@@ -134,6 +141,7 @@ data class BalanceSheet(
 // ==========================================
 // 7. CASH FLOW (/cash-flow)
 // ==========================================
+@Keep
 data class CashFlows(
     @SerializedName("Cash_From_Operations_TTM") val cashFromOperationsTtm: Double?,
     @SerializedName("Cash_From_Investing_TTM") val cashFromInvestingTtm: Double?,
@@ -146,6 +154,7 @@ data class CashFlows(
 // ==========================================
 // 8. PROFITABILITY & EFFICIENCY (/profitability)
 // ==========================================
+@Keep
 data class EfficiencyMargins(
     @SerializedName("Gross_Margin_Pct") val grossMarginPct: Double?,
     @SerializedName("Operating_Margin_YF") val operatingMarginYf: Double?,
@@ -162,6 +171,7 @@ data class EfficiencyMargins(
 // ==========================================
 // 9. MOMENTUM (/momentum)
 // ==========================================
+@Keep
 data class HistoricalReturns(
     @SerializedName("Return_1W") val return1W: Double?,
     @SerializedName("Return_1M") val return1M: Double?,
@@ -176,6 +186,7 @@ data class HistoricalReturns(
 // ==========================================
 // 10. TECHNICALS (/technicals)
 // ==========================================
+@Keep
 data class AdvancedTechnicals(
     @SerializedName("Technical_Rating_Overall") val ratingOverall: Double?,
     @SerializedName("Technical_Rating_MovingAverages") val ratingMovingAverages: Double?,
@@ -203,6 +214,7 @@ data class AdvancedTechnicals(
 // ==========================================
 // 11. ANALYST COVERAGE (/analyst)
 // ==========================================
+@Keep
 data class AnalystCoverage(
     @SerializedName("Analyst_Rating_Consensus") val analystRatingConsensus: String?,
     @SerializedName("Target_Price_Mean") val targetPriceMean: Double?,
@@ -220,6 +232,7 @@ data class AnalystCoverage(
 // ==========================================
 // 12. ADVANCED RISK (/advanced-risk)
 // ==========================================
+@Keep
 data class AdvancedRiskMetrics(
     @SerializedName("Piotroski_F_Score") val piotroskiFScore: Double?,
     @SerializedName("Altman_Z_Score") val altmanZScore: Double?,
@@ -230,43 +243,27 @@ data class AdvancedRiskMetrics(
 // ==========================================
 // 13. APP UTILITIES & SEARCH & LIVE DTOs
 // ==========================================
+@Keep
 data class SimilarStock(
-    val symbol: String,
-    val name: String,
-    val price: Double,
+    @SerializedName("symbol") val symbol: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("price") val price: Double,
     @SerializedName("change_percent") val changePercent: Double,
     @SerializedName("market_cap") val marketCap: Double? = 0.0
 )
 
+@Keep
 data class StockSearchResult(
-    val symbol: String,
-    val name: String,
-    val type: String,
+    @SerializedName("symbol") val symbol: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("type") val type: String,
     @SerializedName("exch") val exchange: String
-)
-
-data class CollectionItem(
-    val symbol: String,
-    val name: String? = null,
-    val price: Double,
-    val changePercent: Double,
-    val volume: Long,
-    @SerializedName("market_cap") val marketCap: Double? = null
-)
-
-data class ScreenerResult(
-    val symbol: String,
-    val name: String,
-    val price: Double,
-    @SerializedName("change_percent") val changePercent: Double,
-    @SerializedName("market_cap") val marketCap: Double,
-    val sector: String,
-    @SerializedName("pe_ratio") val peRatio: Double?
 )
 
 // ==========================================
 // 14. FULL PAYLOAD DTO (Maps exactly to /stock/{symbol}/full)
 // ==========================================
+@Keep
 data class StockInfoDto(
     @SerializedName("Ticker") val ticker: String?,
     @SerializedName("Company_Name") val companyName: String?,
@@ -283,7 +280,7 @@ data class StockInfoDto(
     @SerializedName("Price_Low") val priceLow: Double?,
     @SerializedName("Change_Pct_1D") val changePct1D: Double?,
     @SerializedName("Change_Absolute_1D") val changeAbsolute1D: Double?,
-    val previousClose: Double = 0.0,
+    @SerializedName("previousClose") val previousClose: Double = 0.0,
     @SerializedName("High_52Week") val high52Week: Double?,
     @SerializedName("Low_52Week") val low52Week: Double?,
     @SerializedName("Volume_Current") val volumeCurrent: Double?,
@@ -405,46 +402,17 @@ data class StockInfoDto(
     @SerializedName("Graham_Number") val grahamNumber: Double?,
     @SerializedName("Shares_Float") val sharesFloat: Double?,
 
-    val news: List<StockNews> = emptyList(),
+    @SerializedName("news") val news: List<StockNews> = emptyList(),
     @SerializedName("similar_stocks") val similarStocks: List<SimilarStock> = emptyList()
 )
 
 // ==========================================
 // 15. SECONDARY ENDPOINT RESPONSE DTOs
 // ==========================================
+@Keep
 data class StockAnalysisResponse(
-    val symbol: String,
-    val company: String?,
+    @SerializedName("symbol") val symbol: String,
+    @SerializedName("company") val company: String?,
     @SerializedName("analysis_report") val analysisReport: String
 )
 
-data class FinancialsResponse(
-    val symbol: String,
-    @SerializedName("income_statement_summary") val incomeStatementSummary: Map<String, Double?>?,
-    @SerializedName("profitability_margins") val profitabilityMargins: Map<String, Double?>?,
-    @SerializedName("balance_sheet_health") val balanceSheetHealth: Map<String, Double?>?
-)
-
-data class ShareholdingResponse(
-    val symbol: String,
-    @SerializedName("major_holders") val majorHolders: Map<String, Any>?,
-    @SerializedName("institutional_holders") val institutionalHolders: List<Map<String, Any>>?
-)
-
-data class AnalystDataResponse(
-    val symbol: String,
-    @SerializedName("target_high") val targetHigh: Double?,
-    @SerializedName("target_low") val targetLow: Double?,
-    @SerializedName("target_mean") val targetMean: Double?,
-    @SerializedName("target_median") val targetMedian: Double?,
-    @SerializedName("recommendation_mean") val recommendationMean: Double?,
-    @SerializedName("recommendation_key") val recommendationKey: String?,
-    @SerializedName("recent_updates") val recentUpdates: List<AnalystRecommendationDto> = emptyList()
-)
-
-data class AnalystRecommendationDto(
-    val firm: String,
-    val toGrade: String? = "",
-    val fromGrade: String? = "",
-    val action: String? = ""
-)

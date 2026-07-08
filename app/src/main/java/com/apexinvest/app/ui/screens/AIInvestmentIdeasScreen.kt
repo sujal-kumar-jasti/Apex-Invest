@@ -47,6 +47,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -135,7 +137,7 @@ fun AIInvestmentIdeasScreen(
 
     LaunchedEffect(Unit) {
         if (!canRenderHeavyContent) {
-            delay(350) // Only pay the transition tax once!
+            delay(350.milliseconds) // Only pay the transition tax once!
             canRenderHeavyContent = true
         }
         if (portfolioViewModel.aiState.value is AiUiState.Idle) {
@@ -320,10 +322,26 @@ fun AiResultsList(state: AiUiState, introText: String, isDark: Boolean, onNaviga
                 }
             }
             is AiUiState.Idle -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.AutoAwesome, null, tint = BrandPurple.copy(alpha = 0.5f), modifier = Modifier.size(56.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    Icon(Icons.Default.AutoAwesome, null, tint = BrandPurple.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
                     Spacer(Modifier.height(16.dp))
-                    Text("Enter a theme to unlock AI insights", color = Color.Gray, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Text("Unlock Global Insights", color = if(isDark) Color.White else Color.Black, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Enter a market theme or asset class to get AI-powered recommendations.", color = Color.Gray, style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    
+                    Spacer(Modifier.height(32.dp))
+                    
+                    Text("POPULAR THEMES", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = BrandPurple, letterSpacing = 1.sp)
+                    Spacer(Modifier.height(12.dp))
+                    
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ThemePill("AI Revolution", isDark) { onBuy("Artificial Intelligence") }
+                        ThemePill("Green Energy", isDark) { onBuy("Renewable Energy") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ThemePill("Semiconductors", isDark) { onBuy("Semiconductors") }
+                        ThemePill("Fintech", isDark) { onBuy("Financial Technology") }
+                    }
                 }
             }
         }
@@ -447,6 +465,26 @@ fun GlassySuggestionCard(stock: StockSuggestion, isDark: Boolean, onDetailsClick
                 modifier = Modifier.background(BrandPurple, CircleShape).size(40.dp)
             ) { Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
         }
+    }
+}
+
+@Composable
+private fun RowScope.ThemePill(label: String, isDark: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = BrandPurple.copy(alpha = if (isDark) 0.15f else 0.1f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BrandPurple.copy(alpha = 0.2f)),
+        modifier = Modifier.weight(1f)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = BrandPurple,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,8 +38,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,13 +47,11 @@ import com.apexinvest.app.api.models.CandlePoint
 import com.apexinvest.app.ui.components.glassCard
 import com.apexinvest.app.ui.theme.BrandPurple
 import com.apexinvest.app.ui.theme.LocalAppColors
-import com.apexinvest.app.util.getCurrencySymbol
 import com.apexinvest.app.util.StockMetadataUtils
-import java.text.SimpleDateFormat
+import com.apexinvest.app.util.getCurrencySymbol
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
@@ -202,7 +199,7 @@ fun OptimizedGlassChart(
                             try {
                                 val instant = Instant.ofEpochSecond(epochTime)
                                 dateFormatter.format(instant)
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 pt.time
                             }
                         } else {

@@ -49,6 +49,8 @@ class SessionManager(context: Context) {
         private const val USER_EMAIL = "user_email"
         private const val USER_ID = "user_id"
         private const val IS_GOOGLE_USER = "is_google_user"
+        private const val USER_NAME = "user_name"
+        private const val USER_PROFILE_PIC = "user_profile_pic"
         private const val DEFAULT_BUY_QTY = "default_buy_qty"
         private const val DEFAULT_SELL_QTY = "default_sell_qty"
     }
@@ -61,7 +63,7 @@ class SessionManager(context: Context) {
         return try {
             val encrypted = aead!!.encrypt(value.toByteArray(), null)
             Base64.encodeToString(encrypted, Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -99,15 +101,21 @@ class SessionManager(context: Context) {
         }
     }
 
-    /**
-     * Saves the session data after login or registration.
-     */
-    fun saveAuthToken(token: String?, email: String, userId: String? = null, isGoogle: Boolean = false) {
+    fun saveAuthToken(
+        token: String?,
+        email: String,
+        userId: String? = null,
+        isGoogle: Boolean = false,
+        name: String? = null,       // 🚀 ADDED
+        profilePic: String? = null  // 🚀 ADDED
+    ) {
         prefs.edit {
             putString(USER_TOKEN, encrypt(token))
             putString(USER_EMAIL, encrypt(email))
             putString(USER_ID, encrypt(userId))
             putString(IS_GOOGLE_USER, encrypt(isGoogle.toString()))
+            putString(USER_NAME, encrypt(name))             // 🚀 ADDED
+            putString(USER_PROFILE_PIC, encrypt(profilePic))// 🚀 ADDED
         }
     }
 
@@ -116,8 +124,6 @@ class SessionManager(context: Context) {
     fun fetchAuthToken(): String? = getAuthToken()
 
     fun getUserEmail(): String? = decrypt(prefs.getString(USER_EMAIL, null))
-
-    fun getUserId(): String? = decrypt(prefs.getString(USER_ID, null))
 
     fun isGoogleUser(): Boolean {
         val decryptedVal = decrypt(prefs.getString(IS_GOOGLE_USER, null))
@@ -145,4 +151,8 @@ class SessionManager(context: Context) {
 
     fun getDefaultBuyQty(): Double = prefs.getFloat(DEFAULT_BUY_QTY, 1.0f).toDouble()
     fun getDefaultSellQty(): Double = prefs.getFloat(DEFAULT_SELL_QTY, 1.0f).toDouble()
+
+    fun getUserName(): String? = decrypt(prefs.getString(USER_NAME, null))
+
+    fun getUserProfilePic(): String? = decrypt(prefs.getString(USER_PROFILE_PIC, null))
 }

@@ -81,6 +81,8 @@ import com.apexinvest.app.viewmodel.ExploreUiState
 import com.apexinvest.app.viewmodel.ExploreViewModel
 import com.apexinvest.app.viewmodel.SearchUiState
 import kotlinx.coroutines.delay
+import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 private val ThemePurple = Color(0xFF673AB7)
 private val ShimmerShape = RoundedCornerShape(4.dp)
@@ -174,7 +176,7 @@ fun ExploreScreen(
 
     LaunchedEffect(Unit) {
         if (!canRenderHeavyList) {
-            delay(350)
+            delay(350.milliseconds)
             canRenderHeavyList = true
         }
     }
@@ -209,7 +211,7 @@ fun ExploreScreen(
             .then(if (isConnected) Modifier.statusBarsPadding() else Modifier)
     ) {
         if (canRenderHeavyList) {
-            ExploreContent(uiState, isConnected, onNavigate)
+            ExploreContent(uiState, onNavigate)
         }
 
         if (isSearchActive) {
@@ -288,7 +290,6 @@ fun ExploreScreen(
 @Composable
 fun ExploreContent(
     uiState: ExploreUiState,
-    isConnected: Boolean,
     onNavigate: (String) -> Unit
 ) {
     val mainListState = rememberLazyListState()
@@ -399,7 +400,7 @@ fun ProTrendingCard(stock: TrendingStockDto, colors: ExploreThemeColors, onClick
     val bgTrackColor = remember(isPos, colors) { if (isPos) colors.greenBg else colors.redBg }
     val currencySym = remember(stock.currency) { com.apexinvest.app.util.getCurrencySymbol(stock.currency ?: "") }
     val formattedChange = remember(stock.changePercent, isPos) {
-        "${if(isPos) "+" else ""}${String.format("%.2f", stock.changePercent)}%"
+        "${if(isPos) "+" else ""}${String.format(Locale.US,"%.2f", stock.changePercent)}%"
     }
 
     Box(

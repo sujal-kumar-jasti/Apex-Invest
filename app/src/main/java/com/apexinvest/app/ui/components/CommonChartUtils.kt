@@ -2,12 +2,11 @@ package com.apexinvest.app.ui.components
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -26,20 +25,32 @@ import androidx.compose.ui.unit.dp
 fun OptimizedGrowthChart(
     chartData: List<Double>,
     color: Color,
-    modifier: Modifier = Modifier
-        .fillMaxWidth()
-        .height(180.dp)
+    modifier: Modifier = Modifier,
+    onPointSelected: (Int) -> Unit = {},
+    onSelectionCleared: () -> Unit = {}
 ) {
     var touchX by remember { mutableFloatStateOf(-1f) }
+    val currentData by rememberUpdatedState(chartData)
 
     Box(
         modifier = modifier
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragStart = { touchX = it.x / size.width },
-                    onDragEnd = { touchX = -1f },
+                    onDragStart = { 
+                        if (currentData.isEmpty()) return@detectHorizontalDragGestures
+                        touchX = (it.x / size.width).coerceIn(0f, 1f)
+                        val idx = (touchX * (currentData.size - 1)).toInt().coerceIn(0, currentData.lastIndex)
+                        onPointSelected(idx)
+                    },
+                    onDragEnd = { 
+                        touchX = -1f
+                        onSelectionCleared()
+                    },
                     onHorizontalDrag = { change, _ ->
+                        if (currentData.isEmpty()) return@detectHorizontalDragGestures
                         touchX = (change.position.x / size.width).coerceIn(0f, 1f)
+                        val idx = (touchX * (currentData.size - 1)).toInt().coerceIn(0, currentData.lastIndex)
+                        onPointSelected(idx)
                     }
                 )
             }

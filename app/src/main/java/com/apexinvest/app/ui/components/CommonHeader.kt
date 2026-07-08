@@ -1,10 +1,10 @@
 package com.apexinvest.app.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +20,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +34,7 @@ import com.apexinvest.app.ui.theme.BrandPurple
 @Composable
 fun CommonScreenHeader(
     title: String? = null,
-    modifier: Modifier = Modifier, // Always expose a base modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     centerTitle: Boolean = false,
     applyStatusBarsPadding: Boolean = true,
@@ -122,64 +121,3 @@ private val ProfileAvatarGradient = Brush.linearGradient(
     colors = listOf(BrandPurple, Color(0xFF9575CD))
 )
 
-@Composable
-fun UserProfileHeader(
-    email: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    // 2. MEMOIZE STRING PARSING: String manipulation is CPU intensive.
-    // This ensures it only calculates the name/initial when the email string actually changes.
-    val userInitial = remember(email) {
-        email.firstOrNull()?.toString()?.uppercase() ?: "A"
-    }
-
-    val displayName = remember(email) {
-        if (email.contains("@")) {
-            email.substringBefore("@").replaceFirstChar { it.uppercase() }
-        } else {
-            email.ifBlank { "Trader" }
-        }
-    }
-
-    Row(
-        modifier = modifier
-            .clip(CircleShape) // Swapped RoundedCornerShape(50) for the static CircleShape
-            .clickable(onClick = onClick)
-            .padding(end = 12.dp), // Slightly increased end padding for better touch target balance
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(ProfileAvatarGradient)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(0.2f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = userInitial,
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 20.sp
-            )
-        }
-
-        Spacer(Modifier.width(12.dp))
-
-        Column {
-            Text(
-                text = "Hello,",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = displayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}

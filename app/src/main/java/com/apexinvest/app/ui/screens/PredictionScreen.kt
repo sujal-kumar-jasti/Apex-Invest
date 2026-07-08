@@ -86,6 +86,7 @@ fun PredictionScreen(
     portfolioViewModel: PortfolioViewModel,
     predictionViewModel: PredictionViewModel,
     onBack: () -> Unit,
+    onNavigateToPortfolio: () -> Unit, // 🚀 ADDED
     isConnected: Boolean
 ) {
     LaunchedEffect(Unit) {
@@ -195,7 +196,12 @@ fun PredictionScreen(
                 } else {
                     AnimatedContent(targetState = selectedTab, label = "TabSwitch") { target ->
                         when (target) {
-                            0 -> PortfolioHealthTab(healthState, portfolioState.portfolio.isEmpty(), isDark) { stockResponse ->
+                            0 -> PortfolioHealthTab(
+                                healthState,
+                                portfolioState.portfolio.isEmpty(),
+                                isDark,
+                                onNavigateToPortfolio = onNavigateToPortfolio // 🚀 PASS
+                            ) { stockResponse ->
                                 predictionViewModel.setAnalysisData(stockResponse)
                                 selectedSymbol = stockResponse.symbol
                             }
@@ -211,9 +217,19 @@ fun PredictionScreen(
 }
 
 @Composable
-fun PortfolioHealthTab(state: PortfolioHealthState, isEmpty: Boolean, isDark: Boolean, onStockClick: (DeepAnalysisResponse) -> Unit) {
+fun PortfolioHealthTab(
+    state: PortfolioHealthState,
+    isEmpty: Boolean,
+    isDark: Boolean,
+    onNavigateToPortfolio: () -> Unit, // 🚀 ADDED
+    onStockClick: (DeepAnalysisResponse) -> Unit
+) {
     if (isEmpty) {
-        EmptyStateView("Initialize your portfolio to unlock advanced portfolio analysis.")
+        EmptyStateView(
+            msg = "Your portfolio is empty. Add holdings to unlock deep health metrics and AI risk analysis.",
+            actionText = "Start Investing",
+            onAction = onNavigateToPortfolio
+        )
         return
     }
 
@@ -347,8 +363,20 @@ fun ProErrorView(msg: String) {
 }
 
 @Composable
-fun EmptyStateView(msg: String) = Box(Modifier.fillMaxSize().padding(32.dp), Alignment.Center) {
-    Text(msg, color = Color.Gray, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium)
+fun EmptyStateView(msg: String, actionText: String? = null, onAction: (() -> Unit)? = null) = Box(Modifier.fillMaxSize().padding(32.dp), Alignment.Center) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(msg, color = Color.Gray, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium)
+        if (actionText != null && onAction != null) {
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.Button(
+                onClick = onAction,
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = BrandPurple)
+            ) {
+                Text(actionText, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
 
 @Composable

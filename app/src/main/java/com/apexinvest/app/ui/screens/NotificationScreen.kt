@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.Delete
@@ -33,13 +35,12 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -180,12 +181,8 @@ fun NotificationScreen(
                     key = { it.id }
                 ) { notification ->
                     val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = {
-                            if (it == SwipeToDismissBoxValue.EndToStart) {
-                                portfolioViewModel.deleteNotification(notification.id)
-                                true
-                            } else false
-                        }
+                        SwipeToDismissBoxValue.Settled,
+                        SwipeToDismissBoxDefaults.positionalThreshold
                     )
 
                     AnimatedVisibility(
@@ -251,8 +248,8 @@ fun NotificationCard(
             ) {
                 Icon(
                     imageVector = when (notification.type) {
-                        "PriceAlert" -> Icons.Default.TrendingUp
-                        "VolumeSpike" -> Icons.Default.ShowChart
+                        "PriceAlert" -> Icons.AutoMirrored.Filled.TrendingUp
+                        "VolumeSpike" -> Icons.AutoMirrored.Filled.ShowChart
                         "MomentumShift" -> Icons.Default.AutoGraph
                         "Forecast" -> Icons.Default.Analytics
                         "Health" -> Icons.Default.HealthAndSafety

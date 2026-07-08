@@ -6,7 +6,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -21,31 +20,32 @@ fun PremiumLineChart(
     dataPoints: List<Double>,
     isPositive: Boolean,
     modifier: Modifier = Modifier,
-    strokeColor: Color? = null,
-    fillColor: Color? = null
+    strokeColor: Color? = null
 ) {
     // Return an empty Spacer to prevent the layout from collapsing if data is missing
-    if (dataPoints.size < 2) {
+    if (dataPoints.isEmpty()) {
         Spacer(modifier = modifier)
         return
     }
 
+    // 🚀 Robustness: If only one point, create a horizontal line for rendering
+    val processedPoints = if (dataPoints.size == 1) listOf(dataPoints[0], dataPoints[0]) else dataPoints
+
     val defaultGreen = Color(0xFF00E676)
     val defaultRed = Color(0xFFFF3D00)
     val baseTrendColor = strokeColor ?: if (isPositive) defaultGreen else defaultRed
-    val areaColor = fillColor ?: baseTrendColor
     val isMiniChart = strokeColor != null
 
     // 🚀 CRITICAL OPTIMIZATION: Data Downsampling
     // Prevents the drawWithCache block from calculating thousands of cubic bezier
     // curves at once during the initial composition spike.
-    val optimizedData = remember(dataPoints) {
+    val optimizedData = remember(processedPoints) {
         val maxPoints = 150
-        if (dataPoints.size > maxPoints) {
-            val step = dataPoints.size.toFloat() / maxPoints
-            List(maxPoints) { i -> dataPoints[(i * step).toInt()] }
+        if (processedPoints.size > maxPoints) {
+            val step = processedPoints.size.toFloat() / maxPoints
+            List(maxPoints) { i -> processedPoints[(i * step).toInt()] }
         } else {
-            dataPoints
+            processedPoints
         }
     }
 
@@ -99,12 +99,6 @@ fun PremiumLineChart(
         // Calculate length ONCE here
         pathMeasure.setPath(strokePath, false)
         val pathLength = pathMeasure.length
-
-        val brush = Brush.verticalGradient(
-            colors = listOf(areaColor.copy(alpha = if (isMiniChart) 0.2f else 0.3f), Color.Transparent),
-            startY = 0f,
-            endY = height
-        )
 
         val baselineY = height - verticalPadding - ((optimizedData.first().toFloat() - minVal) / range * drawHeight)
 

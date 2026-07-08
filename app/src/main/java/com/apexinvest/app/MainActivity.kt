@@ -156,17 +156,16 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // 2. MAIN CONTENT LAYER
-                        // We use weight(1f) to take remaining space. 
+                        // We use weight(1f) to take remaining space.
                         Box(modifier = Modifier.weight(1f)) {
                             ApexInvestApp(
                                 viewModelFactory = appContainer.stockDetailViewModelFactory,
-                                webClientId = webclientid,
-                                prefs = prefs,
                                 authViewModel = authViewModel,
                                 exploreViewModel = exploreViewModel,
                                 portfolioViewModel = portfolioViewModel,
                                 predictionViewModel = predictionViewModel,
-                                isConnected = isConnected
+                                isConnected = isConnected,
+                                isAppThemeDark = darkTheme, // Passed exactly from the calculation above
                             ) {
                                 scope.launch { triggerGoogleSignIn() }
                             }
@@ -220,7 +219,7 @@ class MainActivity : ComponentActivity() {
             .build()
         val req = GetCredentialRequest.Builder().addCredentialOption(opt).build()
         try { handleSignInResult(cm.getCredential(this, req)) }
-        catch (e: GetCredentialException) { Toast.makeText(this, "Google Sign-In Cancelled", Toast.LENGTH_SHORT).show() }
+        catch (_: GetCredentialException) { Toast.makeText(this, "Google Sign-In Cancelled", Toast.LENGTH_SHORT).show() }
     }
 
     private fun handleSignInResult(result: GetCredentialResponse) {
@@ -242,13 +241,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ApexInvestApp(
     viewModelFactory: ViewModelProvider.Factory,
-    webClientId: String,
-    prefs: SharedPreferences,
     authViewModel: AuthViewModel,
     exploreViewModel: ExploreViewModel,
     portfolioViewModel: PortfolioViewModel,
     predictionViewModel: PredictionViewModel,
     isConnected: Boolean,
+    isAppThemeDark: Boolean,
     onGoogleSignInClick: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -284,10 +282,6 @@ fun ApexInvestApp(
                     }
                     link.startsWith("analysis:") -> {
                         val symbol = link.substringAfter(":")
-                        // Note: Screen.Predictions is currently where DeepAnalysis is hosted or linked from in the UI
-                        // But for direct access, let's go to StockDetail then user can jump to DeepAnalysis
-                        // Or if DeepAnalysis had its own Screen route, we'd use that.
-                        // For now, StockDetail is the best entry point for specific stock alerts.
                         navController.navigate(Screen.StockDetail.createRoute(symbol, "USD"))
                     }
                 }
@@ -307,11 +301,10 @@ fun ApexInvestApp(
         exploreViewModel = exploreViewModel,
         predictionViewModel = predictionViewModel,
         viewModelProviderFactory = viewModelFactory,
-        webClientId = webClientId,
-        prefs = prefs,
         safeNavigate = { navController.navigate(it) { launchSingleTop = true } },
         safePopBack = { navController.popBackStack() },
         onGoogleSignInClick = onGoogleSignInClick,
-        isConnected = isConnected
+        isConnected = isConnected,
+        isAppThemeDark = isAppThemeDark
     )
 }

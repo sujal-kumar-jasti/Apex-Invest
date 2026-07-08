@@ -76,8 +76,6 @@ import com.apexinvest.app.viewmodel.PortfolioViewModel
 import com.apexinvest.app.viewmodel.StockDetailState
 import com.apexinvest.app.viewmodel.StockDetailViewModel
 import kotlinx.coroutines.delay
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,6 +94,7 @@ fun StockDetailScreen(
     val detailState by stockDetailViewModel.stockDetailState.collectAsStateWithLifecycle()
     val financialsState by stockDetailViewModel.financialsState.collectAsStateWithLifecycle()
     val livePricing by stockDetailViewModel.livePricing.collectAsStateWithLifecycle()
+    val activeCandles by stockDetailViewModel.activeCandles.collectAsStateWithLifecycle()
 
     val watchlist by portfolioViewModel.watchlistStocks.collectAsStateWithLifecycle()
     val isFollowing = remember(watchlist) { watchlist.any { it.symbol == symbol } }
@@ -162,7 +161,6 @@ fun StockDetailScreen(
         )
     }
 
-    var currentLiveCandles by remember { mutableStateOf<List<CandlePoint>>(emptyList()) }
     var isChartLoading by remember { mutableStateOf(true) }
     var currentRange by remember { mutableStateOf("1D") }
     var loadingRange by remember { mutableStateOf<String?>(null) }
@@ -173,15 +171,11 @@ fun StockDetailScreen(
             val newData = state.data
             val isRef = state.isRefreshing
 
-            isChartLoading = isRef && currentLiveCandles.isEmpty()
+            isChartLoading = isRef && activeCandles.isEmpty()
             
             // If we are no longer refreshing, clear the loading lock for the range
             if (!isRef) {
                 loadingRange = null
-            }
-
-            if (newData.candles.isNotEmpty()) {
-                currentLiveCandles = newData.candles
             }
 
             if (newData.ticker == symbol) {
@@ -240,26 +234,6 @@ fun StockDetailScreen(
         livePricing?.priceLast ?: latchedData.marketPricing?.priceLast ?: 0.0 
     }
 
-    LaunchedEffect(lastPrice) {
-        // 🚀 FIX: Only append/update live price to the chart during REGULAR market hours.
-        // This prevents after-hours prices from skewing the regular-hours chart.
-        val (isRegularOpen, _) = StockMetadataUtils.isMarketOpen(symbol)
-        
-        if (currentRange == "1D" && currentLiveCandles.isNotEmpty() && lastPrice > 0.0 && isRegularOpen) {
-            val lastCandle = currentLiveCandles.last()
-            if (lastPrice != lastCandle.close) {
-                val updatedList = currentLiveCandles.toMutableList()
-                val updatedLast = lastCandle.copy(
-                    close = lastPrice,
-                    high = max(lastCandle.high, lastPrice),
-                    low = if (lastCandle.low <= 0.0) lastPrice else min(lastCandle.low, lastPrice)
-                )
-                updatedList[updatedList.size - 1] = updatedLast
-                currentLiveCandles = updatedList
-            }
-        }
-    }
-
     LaunchedEffect(symbol, isConnected) {
         stockDetailViewModel.loadStockDetails(symbol, "1D")
         stockDetailViewModel.loadFinancialsCharts(symbol)
@@ -307,7 +281,7 @@ fun StockDetailScreen(
                 StockDetailContent(
                     data = latchedData,
                     livePricing = livePricing,
-                    liveCandles = currentLiveCandles,
+                    liveCandles = activeCandles,
                     holding = currentHolding,
                     isDark = isDark,
                     isChartLoading = isChartLoading,
@@ -337,7 +311,6 @@ fun StockDetailScreen(
                         change = latchedData.marketPricing?.changeAbsolute1D ?: 0.0,
                         percent = latchedData.marketPricing?.changePct1D ?: 0.0,
                         isPositive = (latchedData.marketPricing?.changeAbsolute1D ?: 0.0) >= 0,
-                        isDark = isDark,
                         isLoading = lastPrice == 0.0,
                         currencySymbol = nativeCurrencySymbol,
                         preMarketPrice = livePricing?.preMarketPrice ?: latchedData.marketPricing?.preMarketPrice,
@@ -361,14 +334,14 @@ fun StockDetailScreen(
                 marketStatus = marketStatus,
                 onSellComplete = {
                     if (isConnected) {
-                        stockDetailViewModel.executePresetTrade(false, true)
+                        stockDetailViewModel.executePresetTrade(false)
                     } else {
                         portfolioViewModel.showMessage("Offline: Cannot trade.", com.apexinvest.app.ui.components.MessageType.ERROR)
                     }
                 },
                 onBuyComplete = {
                     if (isConnected) {
-                        stockDetailViewModel.executePresetTrade(true, true)
+                        stockDetailViewModel.executePresetTrade(true)
                     } else {
                         portfolioViewModel.showMessage("Offline: Cannot trade.", com.apexinvest.app.ui.components.MessageType.ERROR)
                     }
@@ -436,7 +409,7 @@ fun StockDetailContent(
         }
         
         if (calc == 0.0 && latchedData.rangeChangeAbsolute != null && latchedData.rangeChangeAbsolute != 0.0) {
-            latchedData.rangeChangeAbsolute!!
+            latchedData.rangeChangeAbsolute
         } else calc
     }
 
@@ -459,7 +432,7 @@ fun StockDetailContent(
         
         // 🚀 LATCHING: If we are refreshing and the new value is 0.0, hold the old one from latchedData
         if (calc == 0.0 && latchedData.rangeChangePercent != null && latchedData.rangeChangePercent != 0.0) {
-             latchedData.rangeChangePercent!!
+            latchedData.rangeChangePercent
         } else calc
     }
     val isDynamicPositive = remember(dynamicChange) { dynamicChange >= 0 }
@@ -475,7 +448,6 @@ fun StockDetailContent(
             change = dynamicChange,
             percent = dynamicPercent,
             isPositive = isDynamicPositive,
-            isDark = isDark,
             isLoading = lastPrice == 0.0,
             currencySymbol = currencySymbol,
             preMarketPrice = livePricing?.preMarketPrice ?: data.marketPricing?.preMarketPrice,
@@ -495,7 +467,7 @@ fun StockDetailContent(
                 }
                 Box(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 4.dp)) {
                     if (isChartLoading && liveCandles.isEmpty()) {
-                        GlassShimmer(isDark, 260.dp)
+                        GlassShimmer(260.dp)
                     } else {
                         // 🚀 CHART SYNC: Ensure the chart uses the same STABLE price as the header
                         OptimizedGlassChart(liveCandles, chartType, lastPrice, isDynamicPositive, isDark, currencyCode, currentRange, symbol)

@@ -1,11 +1,13 @@
 package com.apexinvest.app.data
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 // --- 1. PORTFOLIO TABLE (Local Database) ---
+@Keep
 @Entity(tableName = "portfolio")
 data class StockEntity(
     @PrimaryKey
@@ -28,6 +30,7 @@ data class StockEntity(
 )
 
 // --- 2. WATCHLIST TABLE ---
+@Keep
 @Entity(tableName = "watchlist")
 data class WatchlistEntity(
     @PrimaryKey
@@ -41,6 +44,7 @@ data class WatchlistEntity(
 )
 
 // --- 3. HELPER MODEL ---
+@Keep
 data class StockPortfolioItem(
     val symbol: String = "",
     val quantity: Double = 0.0,

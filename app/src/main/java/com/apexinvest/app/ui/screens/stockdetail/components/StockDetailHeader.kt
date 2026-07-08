@@ -1,10 +1,10 @@
 package com.apexinvest.app.ui.screens.stockdetail.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,14 +31,12 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -70,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun GlassTopBar(symbol: String, isFollowing: Boolean, isDark: Boolean, onBack: () -> Unit, onWatchlistToggle: () -> Unit) {
@@ -93,7 +92,6 @@ fun PriceHeroSection(
     change: Double,
     percent: Double,
     isPositive: Boolean,
-    isDark: Boolean,
     isLoading: Boolean = false,
     currencySymbol: String = "",
     preMarketPrice: Double? = null,
@@ -210,46 +208,6 @@ fun PriceHeroSection(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ExtendedHoursBadge(
-    label: String,
-    price: Double,
-    change: Double,
-    currencySymbol: String,
-    isDark: Boolean
-) {
-    val appColors = LocalAppColors.current
-    val isPositive = change >= 0
-    val trendColor = if (isPositive) appColors.trendGreen else appColors.trendRed
-    
-    Row(
-        modifier = Modifier
-            .background(if (isDark) Color.White.copy(0.05f) else Color.Black.copy(0.05f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
-        )
-        Text(
-            text = "$currencySymbol${String.format(Locale.US, "%.2f", price)}",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = "${if(isPositive) "+" else ""}${String.format(Locale.US, "%.2f", change)}",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = trendColor
-        )
     }
 }
 
@@ -435,7 +393,7 @@ fun SwipeToTradeButton(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val handleOffset = remember { Animatable(0f) }
-    var trackWidth by remember { mutableStateOf(0f) }
+    var trackWidth by remember { mutableFloatStateOf(0f) }
     val handleSize = 48.dp
     val handleSizePx = with(density) { handleSize.toPx() }
 
@@ -480,7 +438,7 @@ fun SwipeToTradeButton(
                                     handleOffset.animateTo(trackWidth - handleSizePx)
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onComplete()
-                                    delay(500)
+                                    delay(500.milliseconds)
                                     handleOffset.snapTo(0f)
                                 }
                             } else {

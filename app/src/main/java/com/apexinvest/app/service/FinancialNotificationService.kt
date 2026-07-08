@@ -13,6 +13,7 @@ import com.apexinvest.app.R
 import com.apexinvest.app.data.NotificationEntity
 import com.apexinvest.app.data.repository.NotificationRepository
 import java.util.Locale
+import kotlin.math.abs
 
 class FinancialNotificationService(
     private val context: Context,
@@ -38,7 +39,9 @@ class FinancialNotificationService(
         val direction = if (changePercent >= 0) "up" else "down"
         val emoji = if (changePercent >= 0) "🚀" else "📉"
         val title = "Price Alert: $symbol"
-        val message = "$symbol is $direction ${String.format(Locale.US, "%.2f%%", Math.abs(changePercent))} today! Current Price: $${String.format(Locale.US, "%.2f", currentPrice)} $emoji"
+        val message = "$symbol is $direction ${String.format(Locale.US, "%.2f%%",
+            abs(changePercent)
+        )} today! Current Price: $${String.format(Locale.US, "%.2f", currentPrice)} $emoji"
         
         sendNotification(title, message, "PriceAlert", symbol, "apexinvest://stock/$symbol")
     }
@@ -71,14 +74,6 @@ class FinancialNotificationService(
         val message = "Financial health for $symbol changed from $oldScore to $newScore. Review the updated fundamental thesis. 🏥"
         
         sendNotification(title, message, "Health", symbol, "apexinvest://analysis/$symbol")
-    }
-
-    suspend fun sendMarketSummary(upCount: Int, downCount: Int, totalChange: Double) {
-        val status = if (totalChange >= 0) "Bullish" else "Bearish"
-        val title = "Daily Market Wrap: $status"
-        val message = "Your watchlist has $upCount stocks up and $downCount stocks down today. Overall change: ${String.format(Locale.US, "%.2f%%", totalChange)}"
-        
-        sendNotification(title, message, "MarketSummary", null, "apexinvest://watchlist")
     }
 
     suspend fun sendMilestoneAlert(milestone: String) {

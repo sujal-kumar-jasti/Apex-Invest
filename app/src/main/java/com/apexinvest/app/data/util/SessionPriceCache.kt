@@ -26,7 +26,4 @@ object SessionPriceCache {
         return cache[symbol.uppercase().trim()]
     }
 
-    fun clear() {
-        cache.clear()
-    }
 }

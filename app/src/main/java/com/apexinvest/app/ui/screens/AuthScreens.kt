@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person // 🚀 ADDED for Full Name Icon
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -83,6 +84,7 @@ import com.apexinvest.app.ui.theme.LocalAppColors
 import com.apexinvest.app.viewmodel.AuthState
 import com.apexinvest.app.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class ScreenStep {
     LOGIN, SIGNUP, FORGOT_PASSWORD_REQUEST, VERIFY_REGISTRATION_OTP, VERIFY_RESET_OTP
@@ -99,14 +101,15 @@ fun AuthScreen(
 ) {
     val view = LocalView.current
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
-    val appColors = LocalAppColors.current
 
+    var fullName by remember { mutableStateOf("") } // 🚀 ADDED
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var nameError by remember { mutableStateOf(false) } // 🚀 ADDED
     var emailError by remember { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf(false) }
     var otpError by remember { mutableStateOf(false) }
@@ -136,7 +139,7 @@ fun AuthScreen(
 
     LaunchedEffect(isTimerRunning, timerSeconds) {
         if (isTimerRunning && timerSeconds > 0) {
-            delay(1000L)
+            delay(1000L.milliseconds)
             timerSeconds--
         } else if (timerSeconds == 0) {
             isTimerRunning = false
@@ -174,15 +177,23 @@ fun AuthScreen(
     }
 
     fun validateAndProceed() {
-        emailError = false; passwordError = false; otpError = false; newPasswordError = false
+        emailError = false; passwordError = false; otpError = false; newPasswordError = false; nameError = false
         when (currentStep) {
-            ScreenStep.LOGIN, ScreenStep.SIGNUP -> {
+            ScreenStep.LOGIN -> {
                 if (email.isBlank() || password.isBlank()) {
                     emailError = email.isBlank(); passwordError = password.isBlank()
                     authViewModel.showLocalValidationError("Please fill in all fields.")
                 } else {
-                    if (currentStep == ScreenStep.LOGIN) authViewModel.signInWithEmail(email, password)
-                    else authViewModel.signUpWithEmail(email, password)
+                    authViewModel.signInWithEmail(email, password)
+                }
+            }
+            ScreenStep.SIGNUP -> {
+                // 🚀 Added Full Name Validation
+                if (email.isBlank() || password.isBlank() || fullName.isBlank()) {
+                    emailError = email.isBlank(); passwordError = password.isBlank(); nameError = fullName.isBlank()
+                    authViewModel.showLocalValidationError("Please fill in all fields.")
+                } else {
+                    authViewModel.signUpWithEmail(email, password, fullName)
                 }
             }
             ScreenStep.FORGOT_PASSWORD_REQUEST -> {
@@ -214,7 +225,7 @@ fun AuthScreen(
         }
     }
 
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -253,7 +264,16 @@ fun AuthScreen(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         when (step) {
                             ScreenStep.LOGIN, ScreenStep.SIGNUP -> {
-                                StandardAuthForm(email, password, step == ScreenStep.LOGIN, emailError, passwordError, isDark,
+                                StandardAuthForm(
+                                    fullName = fullName,
+                                    email = email,
+                                    password = password,
+                                    isLogin = step == ScreenStep.LOGIN,
+                                    nameError = nameError,
+                                    emailError = emailError,
+                                    passwordError = passwordError,
+                                    isDark = isDark,
+                                    onNameChange = { fullName = it; nameError = false },
                                     onEmailChange = { email = it; emailError = false },
                                     onPasswordChange = { password = it; passwordError = false },
                                     onForgotClick = {
@@ -364,13 +384,21 @@ fun PasswordStrengthMeter(password: String) {
 
 @Composable
 fun StandardAuthForm(
-    email: String, password: String, isLogin: Boolean, emailError: Boolean, passwordError: Boolean, isDark: Boolean,
-    onEmailChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onForgotClick: () -> Unit
+    fullName: String, email: String, password: String, isLogin: Boolean,
+    nameError: Boolean, emailError: Boolean, passwordError: Boolean, isDark: Boolean,
+    onNameChange: (String) -> Unit, onEmailChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onForgotClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
+        // 🚀 ONLY show Full Name field when signing up
+        if (!isLogin) {
+            AuthInput(fullName, onNameChange, "Full Name", Icons.Default.Person, isError = nameError, isDark = isDark)
+            Spacer(Modifier.height(16.dp))
+        }
+
         AuthInput(email, onEmailChange, "Email", Icons.Default.Email, isError = emailError, keyboardType = KeyboardType.Email, isDark = isDark)
         Spacer(Modifier.height(16.dp))
         AuthInput(password, onPasswordChange, "Password", Icons.Default.Lock, isError = passwordError, isPassword = true, isDark = isDark)
+
         if (!isLogin) PasswordStrengthMeter(password)
         else {
             TextButton(onClick = onForgotClick, modifier = Modifier.align(Alignment.End)) {
@@ -385,7 +413,7 @@ fun ErrorDisplaySection(message: String?, onTimeout: () -> Unit) {
     val appColors = LocalAppColors.current
     LaunchedEffect(message) {
         if (message != null) {
-            delay(5000L)
+            delay(5000L.milliseconds)
             onTimeout()
         }
     }

@@ -6,10 +6,6 @@ import com.apexinvest.app.api.models.yahoo.YahooChartResponse
 import com.apexinvest.app.api.models.yahoo.YahooQuoteResponse
 
 object YahooParser {
-
-    /**
-     * 🚀 Lightweight Parser for v7/finance/quote results
-     */
     fun parseV7Response(response: YahooQuoteResponse): List<StockLiveQuoteDto> {
         return response.quoteResponse?.result?.map { data ->
             StockLiveQuoteDto(
@@ -39,7 +35,6 @@ object YahooParser {
 
         // 1. Extract the deep numerical data arrays
         val quoteBlock = result?.indicators?.quote?.firstOrNull()
-        val timestamps = result?.timestamp ?: emptyList()
 
         // 2. Fetch the absolute latest market close tick from the live chart series array
         val lastSequencePrice = quoteBlock?.close?.lastOrNull { it != null && it > 0.0 }
@@ -132,34 +127,39 @@ object YahooParser {
         return candles
     }
 
-    fun filterLast24h(candles: List<CandlePointDto>): List<CandlePointDto> {
+    /**
+     * 🚀 PRECISE ROLLING WINDOW: Always show from "Previous Trading Day Same Time" to "Today Same Time".
+     * This handles weekends and holidays by stepping back to the last active session.
+     */
+    fun filterRollingWindow(symbol: String, candles: List<CandlePointDto>): List<CandlePointDto> {
         if (candles.isEmpty()) return emptyList()
-        // 🛠️ FIX: Anchor to the LATEST data point in the set (not current system time)
-        // This ensures charts remain populated on weekends/holidays.
+
         val lastTimestamp = candles.last().time.toLongOrNull() ?: return candles
+        val exchangeInfo = com.apexinvest.app.util.StockMetadataUtils.getExchangeInfo(symbol)
+        val zoneId = try { java.time.ZoneId.of(exchangeInfo.timezone) } catch (_: Exception) { java.time.ZoneId.of("UTC") }
+        val lastZdt = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochSecond(lastTimestamp), zoneId)
 
-        // 🛠️ WINDOW: 24 Hours (86400 seconds)
-        val rollingStart = lastTimestamp - 86400
-
-        val filtered = candles.filter { candle ->
-            val timestamp = candle.time.toLongOrNull() ?: 0L
-            timestamp >= rollingStart
-        } // Restored missing brace
-
-        return if (filtered.size < 40 && candles.size > filtered.size) {
-            candles.takeLast(100.coerceAtMost(candles.size))
-        } else {
-            filtered
+        // Find previous trading session's same time
+        var startZdt = lastZdt.minusDays(1)
+        while (startZdt.dayOfWeek.value > 5) { // Skip Sat/Sun
+            startZdt = startZdt.minusDays(1)
         }
-    } // Restored missing brace
+
+        val rollingStart = startZdt.toEpochSecond()
+        val filtered = candles.filter { (it.time.toLongOrNull() ?: 0L) >= rollingStart }
+
+        return filtered.ifEmpty {
+            candles.takeLast(60.coerceAtMost(candles.size))
+        }
+    }
 
     fun filterRegularHours(symbol: String, candles: List<CandlePointDto>): List<CandlePointDto> {
         if (candles.isEmpty()) return emptyList() // Restored missing empty check
 
         val exchangeInfo = com.apexinvest.app.util.StockMetadataUtils.getExchangeInfo(symbol)
-        val zoneId = try { java.time.ZoneId.of(exchangeInfo.timezone) } catch (e: Exception) { java.time.ZoneId.of("UTC") }
-        val openTime = try { java.time.LocalTime.parse(exchangeInfo.openTime) } catch (e: Exception) { java.time.LocalTime.of(9, 30) }
-        val closeTime = try { java.time.LocalTime.parse(exchangeInfo.closeTime) } catch (e: Exception) { java.time.LocalTime.of(16, 0) }
+        val zoneId = try { java.time.ZoneId.of(exchangeInfo.timezone) } catch (_: Exception) { java.time.ZoneId.of("UTC") }
+        val openTime = try { java.time.LocalTime.parse(exchangeInfo.openTime) } catch (_: Exception) { java.time.LocalTime.of(9, 30) }
+        val closeTime = try { java.time.LocalTime.parse(exchangeInfo.closeTime) } catch (_: Exception) { java.time.LocalTime.of(16, 0) }
 
         return candles.filter { candle ->
             val timestamp = candle.time.toLongOrNull() ?: 0L // Restored missing timestamp declaration
@@ -168,7 +168,7 @@ object YahooParser {
             if (day > 5) return@filter false // Exclude weekends if they somehow snuck in
 
             val time = zdt.toLocalTime()
-            time >= openTime && time <= closeTime
+            time in openTime..closeTime
         }
     }
 }

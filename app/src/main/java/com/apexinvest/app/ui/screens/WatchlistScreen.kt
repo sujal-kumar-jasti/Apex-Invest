@@ -15,9 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +59,7 @@ import com.apexinvest.app.util.guessCurrencyFromSymbol
 import com.apexinvest.app.viewmodel.PortfolioViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +125,7 @@ fun WatchlistScreen(
                 scope.launch {
                     isManualRefreshing = true
                     portfolioViewModel.loadPortfolioAndPrices()
-                    delay(500)
+                    delay(500.milliseconds)
                     isManualRefreshing = false
                 }
             },
@@ -138,10 +143,21 @@ fun WatchlistScreen(
         ) {
             if (watchlist.isEmpty() && !uiState.isLoading) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(36.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text("Your watchlist is empty.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                        Icon(Icons.Default.Visibility, null, tint = BrandPurple.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
+                        Spacer(Modifier.height(16.dp))
+                        Text("Your watchlist is empty.", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Track global stocks and get real-time price alerts.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Spacer(Modifier.height(24.dp))
+                        androidx.compose.material3.Button(
+                            onClick = { showSearchOverlay = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = BrandPurple)
+                        ) {
+                            Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Explore Global Markets", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             } else {

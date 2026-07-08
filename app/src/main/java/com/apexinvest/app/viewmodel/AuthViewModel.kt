@@ -16,7 +16,7 @@ sealed class AuthState {
     object LoggedOut : AuthState()
     data class SuccessMessage(val message: String, val lastState: AuthState) : AuthState()
     data class Error(val message: String, val lastState: AuthState) : AuthState()
-    data class OtpVerificationRequired(val email: String, val password: String) : AuthState()
+    data class OtpVerificationRequired(val email: String, val password: String, val name: String) : AuthState()
     data class PasswordResetRequired(val email: String) : AuthState()
 }
 
@@ -25,16 +25,7 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState = _authState.asStateFlow()
 
-    init { 
-        viewModelScope.launch(Dispatchers.IO) {
-            val loggedIn = authRepository.isLoggedIn()
-            withContext(Dispatchers.Main) {
-                _authState.value = if (loggedIn) AuthState.LoggedIn else AuthState.LoggedOut
-            }
-        }
-    }
-    
-    fun checkSession() {
+    init {
         viewModelScope.launch(Dispatchers.IO) {
             val loggedIn = authRepository.isLoggedIn()
             withContext(Dispatchers.Main) {
@@ -45,34 +36,59 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     fun signInWithGoogle(idToken: String) = viewModelScope.launch {
         _authState.value = AuthState.Loading
-        authRepository.loginWithGoogle(idToken).fold(onSuccess = { _authState.value = AuthState.LoggedIn }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Google Sign-In failed", AuthState.LoggedOut) })
+        authRepository.loginWithGoogle(idToken).fold(
+            onSuccess = { _authState.value = AuthState.LoggedIn },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Google Sign-In failed", AuthState.LoggedOut) }
+        )
     }
 
     fun updatePassword(old: String, new: String) = viewModelScope.launch {
-        authRepository.changePassword(old, new).fold(onSuccess = { _authState.value = AuthState.SuccessMessage("Password updated!", _authState.value) }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Update failed", _authState.value) })
+        authRepository.changePassword(old, new).fold(
+            onSuccess = { _authState.value = AuthState.SuccessMessage("Password updated!", _authState.value) },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Update failed", _authState.value) }
+        )
     }
 
     fun signInWithEmail(e: String, p: String) = viewModelScope.launch {
         _authState.value = AuthState.Loading
-        authRepository.login(e, p).fold(onSuccess = { _authState.value = AuthState.LoggedIn }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Sign-In failed", AuthState.LoggedOut) })
+        authRepository.login(e, p).fold(
+            onSuccess = { _authState.value = AuthState.LoggedIn },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Sign-In failed", AuthState.LoggedOut) }
+        )
     }
 
-    fun signUpWithEmail(e: String, p: String) = viewModelScope.launch {
+    // 🚀 Added 'n: String' for Name
+    fun signUpWithEmail(e: String, p: String, n: String) = viewModelScope.launch {
         _authState.value = AuthState.Loading
-        authRepository.register(e, p).fold(onSuccess = { _authState.value = AuthState.OtpVerificationRequired(e, p) }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Registration failed", AuthState.LoggedOut) })
+        authRepository.register(e, p).fold(
+            // 🚀 Pass the name into the state
+            onSuccess = { _authState.value = AuthState.OtpVerificationRequired(e, p, n) },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Registration failed", AuthState.LoggedOut) }
+        )
     }
 
     fun requestPasswordReset(e: String) = viewModelScope.launch {
         _authState.value = AuthState.Loading
-        authRepository.requestPasswordResetOtp(e).fold(onSuccess = { _authState.value = AuthState.PasswordResetRequired(e) }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Request failed", AuthState.LoggedOut) })
+        authRepository.requestPasswordResetOtp(e).fold(
+            onSuccess = { _authState.value = AuthState.PasswordResetRequired(e) },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Request failed", AuthState.LoggedOut) }
+        )
     }
 
     fun submitOtp(otp: String, pass: String?) = viewModelScope.launch {
-        val s = _authState.value; _authState.value = AuthState.Loading
+        val s = _authState.value
+        _authState.value = AuthState.Loading
         if (s is AuthState.OtpVerificationRequired) {
-            authRepository.verifyOtp(s.email, s.password, otp).fold(onSuccess = { _authState.value = AuthState.LoggedIn }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Verification failed", s) })
+            // 🚀 Pass s.name to the repository
+            authRepository.verifyOtp(s.email, s.password, otp, s.name).fold(
+                onSuccess = { _authState.value = AuthState.LoggedIn },
+                onFailure = { _authState.value = AuthState.Error(it.message ?: "Verification failed", s) }
+            )
         } else if (s is AuthState.PasswordResetRequired) {
-            authRepository.finalizePasswordReset(s.email, otp, pass ?: "").fold(onSuccess = { _authState.value = AuthState.LoggedOut }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Reset failed", s) })
+            authRepository.finalizePasswordReset(s.email, otp, pass ?: "").fold(
+                onSuccess = { _authState.value = AuthState.LoggedOut },
+                onFailure = { _authState.value = AuthState.Error(it.message ?: "Reset failed", s) }
+            )
         }
     }
 
@@ -89,8 +105,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                 exploreViewModel.clearAllData()
                 authRepository.logout()
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Logout error: ${e.message}")
+        } finally {
+            _authState.value = AuthState.LoggedOut
         }
-        catch (e: Exception) { Log.e(TAG, "Logout error: ${e.message}") } finally { _authState.value = AuthState.LoggedOut }
     }
 
     fun performDeleteAccount(
@@ -100,22 +119,51 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     ) = viewModelScope.launch {
         _authState.value = AuthState.Loading
         try {
-            withContext(Dispatchers.IO) {
-                portfolioViewModel.deleteUserAccount()
-                predictionViewModel.clearAllData()
-                exploreViewModel.clearAllData()
-                authRepository.logout()
+            // 🚀 STEP 1: Call Backend to delete account
+            val result = authRepository.deleteAccount()
+            
+            if (result.isSuccess) {
+                withContext(Dispatchers.IO) {
+                    // 🚀 STEP 2: Clear all local data only if backend success
+                    portfolioViewModel.clearAllData()
+                    predictionViewModel.clearAllData()
+                    exploreViewModel.clearAllData()
+                    authRepository.logout()
+                }
+                _authState.value = AuthState.LoggedOut
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Failed to delete account"
+                _authState.value = AuthState.Error(error, AuthState.LoggedIn)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Delete error: ${e.message}")
+            _authState.value = AuthState.Error(e.message ?: "An unexpected error occurred", AuthState.LoggedIn)
         }
-        catch (e: Exception) { Log.e(TAG, "Delete error: ${e.message}") } finally { _authState.value = AuthState.LoggedOut }
     }
 
-    fun clearError() { val s = _authState.value; if (s is AuthState.Error) _authState.value = s.lastState; if (s is AuthState.SuccessMessage) _authState.value = s.lastState }
-    fun showLocalValidationError(m: String) { _authState.value = AuthState.Error(m, _authState.value) }
+    fun clearError() {
+        val s = _authState.value
+        if (s is AuthState.Error) _authState.value = s.lastState
+        if (s is AuthState.SuccessMessage) _authState.value = s.lastState
+    }
+
+    fun showLocalValidationError(m: String) {
+        _authState.value = AuthState.Error(m, _authState.value)
+    }
+
     fun getUserEmail() = authRepository.getEmail()
+
     fun isGoogleUser() = authRepository.isGoogleUserAccount()
 
+
+    fun getUserName() = authRepository.getName()
+
+    fun getUserProfilePic() = authRepository.getProfilePic()
+
     fun resendRegistrationOtp(e: String) = viewModelScope.launch {
-        authRepository.register(e, "").fold(onSuccess = { _authState.value = AuthState.SuccessMessage("New code sent!", _authState.value) }, onFailure = { _authState.value = AuthState.Error(it.message ?: "Send failed", _authState.value) })
+        authRepository.register(e, "").fold(
+            onSuccess = { _authState.value = AuthState.SuccessMessage("New code sent!", _authState.value) },
+            onFailure = { _authState.value = AuthState.Error(it.message ?: "Send failed", _authState.value) }
+        )
     }
 }

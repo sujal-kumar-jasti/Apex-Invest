@@ -1,7 +1,9 @@
 package com.apexinvest.app.db
 
-import androidx.room.*
-import kotlinx.coroutines.flow.Flow
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 
 @Dao
 interface StockCacheDao {
@@ -16,6 +18,9 @@ interface StockCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStocksCache(stocks: List<StockCacheEntity>)
+
+    @Query("SELECT candlesJson FROM stock_cache WHERE symbol = :symbol")
+    fun getCachedCandlesSync(symbol: String): String?
 
     @Query("DELETE FROM stock_cache")
     suspend fun clearAll()

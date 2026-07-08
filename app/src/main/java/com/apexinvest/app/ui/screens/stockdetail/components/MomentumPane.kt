@@ -69,17 +69,25 @@ fun MomentumPane(
     // Modern glass-styled metric summary grid layout
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
-            ExplainerMetricColumn("1 Week", ret.return1W.fmtPct(), getSentiment(ret.return1W, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("1 Month", ret.return1M.fmtPct(), getSentiment(ret.return1M, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("3 Months", ret.return3M.fmtPct(), getSentiment(ret.return3M, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("6 Months", ret.return6M.fmtPct(), getSentiment(ret.return6M, 0.0, 0.0), isDark, Modifier.weight(1f))
+            ExplainerMetricColumn("1 Week", ret.return1W.fmtPct(), getSentiment(ret.return1W, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("1 Month", ret.return1M.fmtPct(), getSentiment(ret.return1M, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("3 Months", ret.return3M.fmtPct(), getSentiment(ret.return3M, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("6 Months", ret.return6M.fmtPct(), getSentiment(ret.return6M, 0.0, 0.0),
+                Modifier.weight(1f))
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth()) {
-            ExplainerMetricColumn("YTD", ret.returnYtd.fmtPct(), getSentiment(ret.returnYtd, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("1 Year", ret.return1Y.fmtPct(), getSentiment(ret.return1Y, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("3 Years", ret.return3Y.fmtPct(), getSentiment(ret.return3Y, 0.0, 0.0), isDark, Modifier.weight(1f))
-            ExplainerMetricColumn("5 Years", ret.return5Y.fmtPct(), getSentiment(ret.return5Y, 0.0, 0.0), isDark, Modifier.weight(1f))
+            ExplainerMetricColumn("YTD", ret.returnYtd.fmtPct(), getSentiment(ret.returnYtd, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("1 Year", ret.return1Y.fmtPct(), getSentiment(ret.return1Y, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("3 Years", ret.return3Y.fmtPct(), getSentiment(ret.return3Y, 0.0, 0.0),
+                Modifier.weight(1f))
+            ExplainerMetricColumn("5 Years", ret.return5Y.fmtPct(), getSentiment(ret.return5Y, 0.0, 0.0),
+                Modifier.weight(1f))
         }
     }
 
@@ -326,6 +334,3 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
     }
 }
 
-@Composable fun ExplainerMetricColumn(l: String, v: String, s: Int, d: Boolean, m: Modifier) { Column(m) { Text(l, fontSize = 11.sp); Text(v, fontWeight = FontWeight.Bold) } }
-fun Double.fmtPct(): String = String.format(Locale.US, "%.2f%%", this)
-fun getSentiment(v: Double, low: Double, high: Double): Int = 0

@@ -1,5 +1,6 @@
 package com.apexinvest.app.ui.screens.stockdetail.components
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -36,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -62,7 +62,7 @@ enum class ChartType { LINE, CANDLE }
 enum class Sentiment { POSITIVE, NEGATIVE, NEUTRAL }
 
 @Composable
-fun MetricColumn(label: String, value: String?, isDark: Boolean, modifier: Modifier = Modifier) {
+fun MetricColumn(label: String, value: String?, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(4.dp))
@@ -71,7 +71,7 @@ fun MetricColumn(label: String, value: String?, isDark: Boolean, modifier: Modif
 }
 
 @Composable
-fun ExplainerMetricColumn(label: String, value: String?, sentiment: Sentiment, isDark: Boolean, modifier: Modifier = Modifier) {
+fun ExplainerMetricColumn(label: String, value: String?, sentiment: Sentiment, modifier: Modifier = Modifier) {
     val appColors = LocalAppColors.current
     val valueColor = when (sentiment) {
         Sentiment.POSITIVE -> appColors.trendGreen
@@ -96,7 +96,7 @@ fun GlassPaneCard(title: String, isDark: Boolean, content: @Composable () -> Uni
 }
 
 @Composable
-fun VisualProgressBar(label: String, value: Double?, color: Color, isDark: Boolean) {
+fun VisualProgressBar(label: String, value: Double?, color: Color) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
             Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -115,7 +115,6 @@ fun TradingViewGauge(
     ratingValue: Double,
     title: String,
     subtitle: String,
-    isDark: Boolean,
     isAnalyst: Boolean,
     customLabel: String? = null
 ) {
@@ -258,7 +257,7 @@ fun TradingViewGauge(
 }
 
 @Composable
-fun GlassShimmer(isDark: Boolean, height: androidx.compose.ui.unit.Dp = 300.dp, modifier: Modifier = Modifier) {
+fun GlassShimmer(height: androidx.compose.ui.unit.Dp = 300.dp, @SuppressLint("ModifierParameter") modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "Shimmer")
     val alpha by transition.animateFloat(initialValue = 0.05f, targetValue = 0.15f, animationSpec = infiniteRepeatable(tween(1000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "Alpha")
     Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha)))

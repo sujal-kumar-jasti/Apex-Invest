@@ -42,11 +42,19 @@ class AuthRepository(
         try {
             val response = apiService.googleLogin(GoogleAuthRequest(idToken))
             if (response.isSuccessful && response.body()?.token != null) {
-                val token = response.body()!!.token!!
+                val body = response.body()!!
+                val token = body.token!!
                 val realEmail = extractEmailFromToken(token)
-                sessionManager.saveAuthToken(token, realEmail, isGoogle = true)
 
-                // FIX: Removed performFullCloudSync(). PortfolioViewModel handles this now.
+                // 🚀 PASS THE NEW FIELDS
+                sessionManager.saveAuthToken(
+                    token = token,
+                    email = realEmail,
+                    isGoogle = true,
+                    name = body.name,
+                    profilePic = body.profilePic
+                )
+
                 Result.success("Google login successful")
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Google login failed"
@@ -93,14 +101,21 @@ class AuthRepository(
         }
     }
 
-    suspend fun verifyOtp(email: String, password: String, otp: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun verifyOtp(email: String, password: String, otp: String, name: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.verifyOtp(VerifyOtpRequest(email, password, otp))
+            // 🚀 Pass the name into the API request
+            val response = apiService.verifyOtp(VerifyOtpRequest(email, password, otp, name))
             if (response.isSuccessful && response.body()?.token != null) {
-                val token = response.body()!!.token!!
-                sessionManager.saveAuthToken(token, email, isGoogle = false)
+                val body = response.body()!!
 
-                // FIX: Removed performFullCloudSync(). PortfolioViewModel handles this now.
+                sessionManager.saveAuthToken(
+                    token = body.token!!,
+                    email = email,
+                    isGoogle = false,
+                    name = body.name,
+                    profilePic = body.profilePic
+                )
+
                 Result.success("Verification successful")
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Invalid OTP"))
@@ -116,8 +131,15 @@ class AuthRepository(
         try {
             val response = apiService.loginUser(AuthRequest(email, password))
             if (response.isSuccessful && response.body()?.token != null) {
-                val token = response.body()!!.token!!
-                sessionManager.saveAuthToken(token, email, isGoogle = false)
+                val body = response.body()!! // 🚀 Defined body here so the references below work
+
+                sessionManager.saveAuthToken(
+                    token = body.token!!,
+                    email = email,
+                    isGoogle = false,
+                    name = body.name,
+                    profilePic = body.profilePic
+                )
 
                 // FIX: Removed performFullCloudSync(). PortfolioViewModel handles this now.
                 Result.success("Login successful")
@@ -158,6 +180,23 @@ class AuthRepository(
         }
     }
 
+    // --- DELETE ACCOUNT ---
+
+    suspend fun deleteAccount(): Result<Unit> = withContext(Dispatchers.IO) {
+        val token = sessionManager.getAuthToken() ?: return@withContext Result.failure(Exception("Not logged in"))
+        try {
+            val response = apiService.deleteUserAccount("Bearer $token")
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to delete account from server"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // --- SESSION & CLEANUP ---
 
     suspend fun logout() = withContext(Dispatchers.IO) {
@@ -177,4 +216,8 @@ class AuthRepository(
     fun isGoogleUserAccount(): Boolean {
         return sessionManager.isGoogleUser()
     }
+
+    fun getName(): String? = sessionManager.getUserName()
+
+    fun getProfilePic(): String? = sessionManager.getUserProfilePic()
 }

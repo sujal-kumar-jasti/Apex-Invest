@@ -59,7 +59,6 @@ class PredictionViewModel(
         val existingData = when (currentState) {
             is AnalysisState.Success -> currentState.data
             is AnalysisState.Error -> currentState.data
-            is AnalysisState.Loading -> currentState.data
             else -> null
         }
 
@@ -140,23 +139,6 @@ class PredictionViewModel(
             lower.contains("backend failure") || lower.contains("500") || lower.contains("502") ->
                 "Server is temporarily unavailable. Retrying..."
             else -> "Analysis interrupted. Tap to retry."
-        }
-    }
-
-    // 🚀 AUTO-HEAL HOOKS: Call these from your UI when 'isConnected' turns true
-    fun autoHealPortfolioScan() {
-        val state = _portfolioHealthState.value
-        if (state is PortfolioHealthState.Error) {
-            // Do not retry if the error is just an empty portfolio warning
-            if (!state.message.contains("empty", ignoreCase = true)) {
-                scanPortfolio(forceRefresh = true)
-            }
-        }
-    }
-
-    fun autoHealStockAnalysis() {
-        if (_analysisState.value is AnalysisState.Error) {
-            lastAnalyzedSymbol?.let { analyzeStock(it, forceRefresh = true) }
         }
     }
 

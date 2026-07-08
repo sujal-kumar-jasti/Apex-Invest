@@ -25,14 +25,16 @@ fun guessCurrencyFromSymbol(rawSymbol: String): String {
     // 2. Use StockMetadataUtils to decode based on suffix
     val exchangeInfo = StockMetadataUtils.getExchangeInfo(clean)
     
-    // 🚀 FIX: If getExchangeInfo returns a currency other than the default fallback USD, use it.
-    // However, we need to be careful if it falls back to USD for unknown suffixes.
-    if (clean.contains(".")) {
+    // 🚀 FIX: Reliable detection via exchange metadata
+    if (clean.contains(".") || exchangeInfo.currency != "USD") {
         return exchangeInfo.currency
     }
 
-    // Default for US stocks (no dot)
-    return "USD"
+    // 3. Fallback for common patterns if suffix is missing
+    return when {
+        clean.endsWith(".NS") || clean.endsWith(".BO") -> "INR"
+        else -> "USD"
+    }
 }
 
 /**
@@ -69,10 +71,18 @@ fun getConvertedValue(
     rates: Map<String, Double>,
     sourceCurrencyOverride: String? = null
 ): Double {
-    val sourceCurrency = sourceCurrencyOverride ?: guessCurrencyFromSymbol(symbol)
+    // 🚀 FIX: Prioritize exchange metadata for the most accurate source currency
+    val sourceCurrency = sourceCurrencyOverride ?: run {
+        val info = StockMetadataUtils.getExchangeInfo(symbol)
+        if (info.currency != "USD" || symbol.contains(".")) {
+            info.currency
+        } else {
+            guessCurrencyFromSymbol(symbol)
+        }
+    }
     val targetCurrency = if (targetIsUsd) "USD" else "INR"
     
-    if (sourceCurrency.uppercase() == targetCurrency.uppercase()) return value
+    if (sourceCurrency.equals(targetCurrency, ignoreCase = true)) return value
     
     // 1. Convert source to USD
     val valueInUsd = if (sourceCurrency.uppercase() == "USD") {
@@ -89,18 +99,6 @@ fun getConvertedValue(
     } else {
         val targetRateFromUsd = rates[targetCurrency] ?: 1.0
         if (targetRateFromUsd <= 0.0) valueInUsd else valueInUsd * targetRateFromUsd
-    }
-}
-
-/**
- * Legacy support for single rate conversion (USD -> INR).
- */
-fun getConvertedValue(value: Double, symbol: String, isUsd: Boolean, rate: Double): Double {
-    val sourceCurrency = guessCurrencyFromSymbol(symbol)
-    return if (isUsd) {
-        if (sourceCurrency == "INR") value / rate else value
-    } else {
-        if (sourceCurrency == "INR") value else value * rate
     }
 }
 

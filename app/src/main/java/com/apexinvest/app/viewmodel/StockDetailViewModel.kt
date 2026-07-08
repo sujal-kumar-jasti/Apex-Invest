@@ -2,32 +2,29 @@ package com.apexinvest.app.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.apexinvest.app.api.models.CandlePoint
 import com.apexinvest.app.api.models.FinancialsDto
 import com.apexinvest.app.api.models.MarketPricing
 import com.apexinvest.app.api.models.StockDetailsResponse
-import com.apexinvest.app.api.models.StockLiveQuoteDto
 import com.apexinvest.app.api.models.StockSearchResult
 import com.apexinvest.app.data.PortfolioRepository
 import com.apexinvest.app.data.StockEntity
 import com.apexinvest.app.data.WatchlistEntity
 import com.apexinvest.app.data.remote.TradingViewWebSocketClient
 import com.apexinvest.app.data.repository.StockDetailsRepository
-import com.apexinvest.app.utils.SessionManager
 import com.apexinvest.app.data.util.SessionPriceCache
 import com.apexinvest.app.util.StockMetadataUtils
+import com.apexinvest.app.utils.SessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.max
@@ -57,10 +54,8 @@ class StockDetailViewModel(
     val stockDetailState: StateFlow<StockDetailState> = _stockDetailState
 
     private val _selectedRange = MutableStateFlow("1D")
-    val selectedRange: StateFlow<String> = _selectedRange
 
     private val _searchResults = MutableStateFlow<List<StockSearchResult>>(emptyList())
-    val searchResults: StateFlow<List<StockSearchResult>> = _searchResults
 
     private val _tradeStatusMessage = MutableStateFlow<String?>(null)
     val tradeStatusMessage: StateFlow<String?> = _tradeStatusMessage
@@ -70,6 +65,10 @@ class StockDetailViewModel(
 
     private val _livePricing = MutableStateFlow<MarketPricing?>(null)
     val livePricing: StateFlow<MarketPricing?> = _livePricing
+
+    // 🚀 NEW: Dedicated StateFlow for candles to prevent flicker
+    private val _activeCandles = MutableStateFlow<List<CandlePoint>>(emptyList())
+    val activeCandles: StateFlow<List<CandlePoint>> = _activeCandles
 
     private var wsJob: Job? = null
     private var pollingJob: Job? = null
@@ -90,7 +89,7 @@ class StockDetailViewModel(
         else null
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val marketStatus: StateFlow<Pair<Boolean, String>> = _stockDetailState.combine(_livePricing) { state, live ->
+    val marketStatus: StateFlow<Pair<Boolean, String>> = _stockDetailState.combine(_livePricing) { state, _ ->
         val symbol = (state as? StockDetailState.Success)?.data?.ticker ?: ""
         if (symbol.isBlank()) false to "Loading..."
         else StockMetadataUtils.isMarketOpen(symbol)
@@ -178,7 +177,7 @@ class StockDetailViewModel(
             }
         } else {
             // 🚀 RANGE SWITCH: Keep existing live pricing and candles for smooth transition
-            _stockDetailState.value = StockDetailState.Success(currentData!!, isRefreshing = true)
+            _stockDetailState.value = StockDetailState.Success(currentData, isRefreshing = true)
         }
 
         detailJob?.cancel()
@@ -216,6 +215,29 @@ class StockDetailViewModel(
                         if (updatedPricing != null) {
                             _livePricing.value = updatedPricing
                         }
+
+                        // 🚀 SMOOTH UPDATE: Merge candles carefully
+                        if (data.candles.isNotEmpty()) {
+                            val newCandles = data.candles.map { dto ->
+                                CandlePoint(
+                                    time = dto.time, open = dto.open, high = dto.high,
+                                    low = dto.low, close = dto.close, volume = dto.volume
+                                )
+                            }
+                            
+                            val currentList = _activeCandles.value
+                            if (currentList.isEmpty() || currentList.size != newCandles.size || uiRange != "1D") {
+                                _activeCandles.value = newCandles
+                            } else {
+                                // If same size, only replace if the new candles have a newer last point
+                                val currentLast = currentList.lastOrNull()?.time?.toLongOrNull() ?: 0L
+                                val incomingLast = newCandles.lastOrNull()?.time?.toLongOrNull() ?: 0L
+                                if (incomingLast >= currentLast) {
+                                    _activeCandles.value = newCandles
+                                }
+                            }
+                        }
+
                         _stockDetailState.value = StockDetailState.Success(mirroredData, isRefreshing = !isComplete)
                     }.onFailure { e ->
                         if (_stockDetailState.value !is StockDetailState.Error) {
@@ -228,21 +250,21 @@ class StockDetailViewModel(
 
     fun loadCurrentPrice(symbol: String, forceNetwork: Boolean = false) {
         val normalizedSymbol = symbol.uppercase(Locale.ROOT).trim()
-        android.util.Log.d("StockDetailVM", "loadCurrentPrice: $normalizedSymbol, force: $forceNetwork")
+        Log.d("StockDetailVM", "loadCurrentPrice: $normalizedSymbol, force: $forceNetwork")
         viewModelScope.launch(Dispatchers.Default) {
             try {
                 val freshLiveDto = portfolioRepository.fetchLivePriceOnly(normalizedSymbol, forceNetwork = forceNetwork)
                 if (freshLiveDto != null && (freshLiveDto.price > 0.0)) {
-                    android.util.Log.d("StockDetailVM", "loadCurrentPrice result for $normalizedSymbol: ${freshLiveDto.price}, state=${freshLiveDto.marketState}")
+                    Log.d("StockDetailVM", "loadCurrentPrice result for $normalizedSymbol: ${freshLiveDto.price}, state=${freshLiveDto.marketState}")
                     updateUiWithLivePrice(normalizedSymbol, freshLiveDto.price, freshLiveDto.open, freshLiveDto.dayHigh, freshLiveDto.dayLow,
                         prePrice = freshLiveDto.prePrice, preChange = freshLiveDto.preChange,
                         postPrice = freshLiveDto.postPrice, postChange = freshLiveDto.postChange,
                         marketState = freshLiveDto.marketState)
                 } else {
-                    android.util.Log.w("StockDetailVM", "loadCurrentPrice: Got null or 0 price for $normalizedSymbol")
+                    Log.w("StockDetailVM", "loadCurrentPrice: Got null or 0 price for $normalizedSymbol")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("StockDetailVM", "loadCurrentPrice error for $normalizedSymbol", e)
+                Log.e("StockDetailVM", "loadCurrentPrice error for $normalizedSymbol", e)
             }
         }
     }
@@ -252,8 +274,8 @@ class StockDetailViewModel(
         wsJob?.cancel()
         pollingJob?.cancel()
 
-        val (isOpen, status) = com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(normalizedSymbol)
-        val isExtended = com.apexinvest.app.util.StockMetadataUtils.isExtendedMarketActive(normalizedSymbol)
+        val (isOpen, status) = StockMetadataUtils.isMarketOpen(normalizedSymbol)
+        val isExtended = StockMetadataUtils.isExtendedMarketActive(normalizedSymbol)
 
         if (isOpen) {
             Log.d("StockDetailVM", "Starting Live Updates for $normalizedSymbol ($status)")
@@ -418,6 +440,24 @@ class StockDetailViewModel(
             if (_livePricing.value != updatedPricing) {
                 _livePricing.value = updatedPricing
             }
+
+            // 🚀 LIVE CHART UPDATE: Smoothly update the last candle point in the VM
+            if (_selectedRange.value == "1D" && _activeCandles.value.isNotEmpty()) {
+                val (isRegularOpen, _) = StockMetadataUtils.isMarketOpen(symbol)
+                if (isRegularOpen) {
+                    val currentList = _activeCandles.value.toMutableList()
+                    val lastCandle = currentList.last()
+                    if (price != lastCandle.close) {
+                        val updatedLast = lastCandle.copy(
+                            close = price,
+                            high = max(lastCandle.high, price),
+                            low = if (lastCandle.low <= 0.0) price else min(lastCandle.low, price)
+                        )
+                        currentList[currentList.size - 1] = updatedLast
+                        _activeCandles.value = currentList
+                    }
+                }
+            }
         }
     }
 
@@ -425,10 +465,9 @@ class StockDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) { _searchResults.value = portfolioRepository.searchStocks(query) }
     }
 
-    fun clearSearchResults() { _searchResults.value = emptyList() }
     fun clearTradeMessage() { _tradeStatusMessage.value = null }
 
-    fun executePresetTrade(isBuy: Boolean, isQuick: Boolean = true) {
+    fun executePresetTrade(isBuy: Boolean) {
         val sym = (stockDetailState.value as? StockDetailState.Success)?.data?.ticker ?: return
         val currentPrice = lastSeenPrice
         if (currentPrice <= 0.0) {
@@ -441,70 +480,14 @@ class StockDetailViewModel(
             val type = if (isBuy) com.apexinvest.app.data.TransactionType.BUY else com.apexinvest.app.data.TransactionType.SELL
 
             try {
-                portfolioRepository.recordTrade(sym, type, quantity, currentPrice, "USD").join()
-                _tradeStatusMessage.value = if (isBuy) "Bought ${String.format("%.2f", quantity)} shares" else "Sold ${String.format("%.2f", quantity)} shares"
+                portfolioRepository.recordTrade(sym, type, quantity, currentPrice, "USD")
+                _tradeStatusMessage.value = if (isBuy) "" else "Sold ${String.format(Locale.US, "%.2f", quantity)} shares"
             } catch (e: Exception) {
                 _tradeStatusMessage.value = "Trade Failed: ${e.message}"
             }
         }
     }
 
-    fun executeTrade(symbol: String, isBuy: Boolean, quantityStr: String, priceStr: String, currency: String) {
-        val qty = quantityStr.toDoubleOrNull() ?: 0.0
-        val prc = priceStr.toDoubleOrNull() ?: 0.0
-        if (qty <= 0.0 || prc <= 0.0) {
-            _tradeStatusMessage.value = "Error: Invalid Quantity or Price"
-            return
-        }
-        val type = if (isBuy) com.apexinvest.app.data.TransactionType.BUY else com.apexinvest.app.data.TransactionType.SELL
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                portfolioRepository.recordTrade(symbol, type, qty, prc, currency).join()
-                _tradeStatusMessage.value = "Trade Success"
-            } catch (e: Exception) {
-                _tradeStatusMessage.value = "Trade Error: ${e.message}"
-            }
-        }
-    }
-
-    private inline fun patchCurrentState(patcher: (StockDetailsResponse) -> StockDetailsResponse) {
-        val current = _stockDetailState.value
-        if (current is StockDetailState.Success) {
-            _stockDetailState.value = current.copy(data = patcher(current.data))
-        }
-    }
-
-    fun refreshMarketPricing(symbol: String, range: String) {
-        val sym = symbol.uppercase(Locale.ROOT).trim()
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getMarketPricingSlice(sym, forceRefresh = true).onSuccess { pricing -> patchCurrentState { it.copy(marketPricing = pricing) } } }
-    }
-    fun refreshValuationMultipliers(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getValuationSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(valuationMultipliers = data) } } }
-    }
-    fun refreshIncomeStatement(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getIncomeSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(incomeStatement = data) } } }
-    }
-    fun refreshBalanceSheet(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getBalanceSheetSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(balanceSheet = data) } } }
-    }
-    fun refreshCashFlows(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getCashFlowsSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(cashFlows = data) } } }
-    }
-    fun refreshEfficiencyMargins(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getEfficiencySlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(efficiencyMargins = data) } } }
-    }
-    fun refreshHistoricalReturns(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getHistoricalReturnsSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(historicalReturns = data) } } }
-    }
-    fun refreshAdvancedTechnicals(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getAdvancedTechnicalsSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(advancedTechnicals = data) } } }
-    }
-    fun refreshAnalystCoverage(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getAnalystCoverageSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(analystCoverage = data) } } }
-    }
-    fun refreshAdvancedRiskMetrics(symbol: String) {
-        viewModelScope.launch(Dispatchers.IO) { stockDetailsRepository.getAdvancedRiskSlice(symbol, forceRefresh = true).onSuccess { data -> patchCurrentState { it.copy(advancedRiskMetrics = data) } } }
-    }
 
     fun loadFinancialsCharts(symbol: String, forceRefresh: Boolean = false) {
         financialsJob?.cancel()
@@ -515,17 +498,5 @@ class StockDetailViewModel(
         }
     }
 
-    companion object {
-        fun Factory(
-            stockDetailsRepository: StockDetailsRepository,
-            portfolioRepository: PortfolioRepository,
-            sessionManager: SessionManager,
-            tradingViewWebSocketClient: TradingViewWebSocketClient
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return StockDetailViewModel(stockDetailsRepository, portfolioRepository, sessionManager, tradingViewWebSocketClient) as T
-            }
-        }
-    }
+    companion object
 }

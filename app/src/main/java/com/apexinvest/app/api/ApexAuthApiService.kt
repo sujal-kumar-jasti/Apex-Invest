@@ -75,19 +75,6 @@ interface ApexAuthApiService {
         @Body watchlistItem: WatchlistItem
     ): Response<Unit>
 
-    // 🌟 NEW: Force Delete Portfolio Item (Cleanup)
-    @DELETE("/user/portfolio/{symbol}")
-    suspend fun deleteCloudPortfolioItem(
-        @Header("Authorization") token: String,
-        @Path("symbol") symbol: String
-    ): Response<Unit>
-
-    // 🌟 NEW: Clear Transaction History
-    @DELETE("/user/transactions")
-    suspend fun clearCloudTransactions(
-        @Header("Authorization") token: String
-    ): Response<Unit>
-
     // 🌟 NEW: Delete User Account (Full Wipe)
     @DELETE("/user/account")
     suspend fun deleteUserAccount(

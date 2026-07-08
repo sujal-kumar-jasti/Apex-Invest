@@ -3,4 +3,13 @@
 
     <color name="splash_bg">#FFFFFF</color>
     <color name="splash_icon_tint">#8365D1</color>
+    <color name="telegram_bar_bg">#F5F5F7</color>
+    <color name="telegram_bar_border">#1A000000</color>
+    <color name="telegram_active_pill">#20673AB7</color>
+    <color name="telegram_accent">#673AB7</color>
+    <color name="telegram_unselected">#757575</color>
+    <color name="brand_purple">#673AB7</color> <!-- Match your compose BrandPurple -->
+    <color name="trend_green">#4CAF50</color>  <!-- Match your appColors.trendGreen -->
+    <color name="trend_red">#F44336</color>    <!-- Match your appColors.trendRed -->
+    <color name="gray">#888888</color>
 </resources>

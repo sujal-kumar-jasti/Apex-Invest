@@ -1,2 +1,9 @@
 <resources>
-    <color name="splash_bg">#000000</color> <color name="splash_icon_tint">#9380C5</color> </resources>
+    <color name="splash_bg">#000000</color>
+    <color name="splash_icon_tint">#9380C5</color>
+    <color name="telegram_bar_bg">#1C1C1E</color>
+    <color name="telegram_bar_border">#1AFFFFFF</color>
+    <color name="telegram_active_pill">#339E86FF</color>
+    <color name="telegram_accent">#9E86FF</color>
+    <color name="telegram_unselected">#A0A5B0</color>
+</resources>
