@@ -5,7 +5,7 @@
 
 You can download the latest APK directly from the link below:
 
-[Download Apex Invest v1.0 APK](https://github.com/sujal-kumar-jasti/Apex-Invest/releases/download/V1.4.0/apex_invest_1.4.0.apk)
+[Download Apex Invest v1.4.0 APK](https://github.com/sujal-kumar-jasti/Apex-Invest/releases/download/V1.4.0/apex_invest_1.4.0.apk)
 
 ### How to Install
 
