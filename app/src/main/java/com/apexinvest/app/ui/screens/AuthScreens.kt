@@ -38,7 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person // 🚀 ADDED for Full Name Icon
+import androidx.compose.material.icons.filled.Person // Full Name Icon
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -102,14 +102,14 @@ fun AuthScreen(
     val view = LocalView.current
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
 
-    var fullName by remember { mutableStateOf("") } // 🚀 ADDED
+    var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    var nameError by remember { mutableStateOf(false) } // 🚀 ADDED
+    var nameError by remember { mutableStateOf(false) }
     var emailError by remember { mutableStateOf(false) }
     var passwordError by remember { mutableStateOf(false) }
     var otpError by remember { mutableStateOf(false) }
@@ -188,7 +188,7 @@ fun AuthScreen(
                 }
             }
             ScreenStep.SIGNUP -> {
-                // 🚀 Added Full Name Validation
+                // Full Name Validation
                 if (email.isBlank() || password.isBlank() || fullName.isBlank()) {
                     emailError = email.isBlank(); passwordError = password.isBlank(); nameError = fullName.isBlank()
                     authViewModel.showLocalValidationError("Please fill in all fields.")
@@ -389,7 +389,7 @@ fun StandardAuthForm(
     onNameChange: (String) -> Unit, onEmailChange: (String) -> Unit, onPasswordChange: (String) -> Unit, onForgotClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // 🚀 ONLY show Full Name field when signing up
+        // Only show Full Name field when signing up
         if (!isLogin) {
             AuthInput(fullName, onNameChange, "Full Name", Icons.Default.Person, isError = nameError, isDark = isDark)
             Spacer(Modifier.height(16.dp))

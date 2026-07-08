@@ -25,7 +25,7 @@ object MathUtils {
             val currentVal = getConvertedValue(stock.currentPrice * stock.quantity, stock.symbol, isUsd, rates)
             val investedVal = getConvertedValue(stock.buyPrice * stock.quantity, stock.symbol, isUsd, rates)
             
-            // Calculate what the portfolio was worth at the start of the current daily session
+            // Calculate portfolio value at start of daily session
             val prevClosePrice = if (stock.previousClose > 0.0) stock.previousClose else stock.currentPrice
             val prevVal = getConvertedValue(prevClosePrice * stock.quantity, stock.symbol, isUsd, rates)
 
@@ -40,11 +40,9 @@ object MathUtils {
         val dailyGain = totalValue - totalPrevValue
         val dailyPercent = if (totalPrevValue > 0) (dailyGain / totalPrevValue) * 100 else 0.0
 
-        // 🛠️ FIX: Aggregate chart data with RIGHT-ALIGNMENT (anchored to the latest point)
-        // 🚀 DENSITY FIX: Cap points to ~250 for a clean 1D visualization
+        // Aggregate chart data
         val rawMaxPoints = sparklineCache.values.maxOfOrNull { it.size } ?: 0
-        // Use a minimum of 60 points if we have a portfolio but no sparklines yet to avoid empty chart
-        // 🚀 STARTUP FIX: Ensure at least 60 points if we have holdings, so the PremiumLineChart (req size >= 2) renders.
+        // Ensure enough points for chart rendering
         val maxPoints =
             if (portfolio.isNotEmpty()) maxOf(60, minOf(rawMaxPoints, 250)) else 0
         
@@ -52,7 +50,7 @@ object MathUtils {
             List(maxPoints) { i ->
                 portfolio.sumOf { stock ->
                     val history = sparklineCache[stock.symbol] ?: emptyList()
-                    // Right-align index: current index 'i' relative to the end of each list
+                    // Right-align history index
                     val offset = history.size - maxPoints
                     val historyIndex = i + offset
                     
@@ -60,8 +58,7 @@ object MathUtils {
                         history.isEmpty() -> stock.currentPrice
                         historyIndex >= history.size -> history.last().close
                         historyIndex < 0 -> {
-                            // If we don't have enough history for this point, use the oldest available 
-                            // or the previous close to avoid starting at zero
+                            // Fallback to oldest history or previous close
                             history.firstOrNull()?.close ?: (if (stock.previousClose > 0) stock.previousClose else stock.currentPrice)
                         }
                         else -> history[historyIndex].close

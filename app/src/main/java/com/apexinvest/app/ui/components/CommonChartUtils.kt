@@ -66,8 +66,7 @@ fun OptimizedGrowthChart(
 
                 fun calcY(v: Double) = (h - ((v - min) / r * h)).toFloat()
 
-                // 1. PROPER CACHING: drawWithCache holds onto these paths automatically
-                // until the chartData or the Box size changes. No mutableStateOf needed!
+                // Cache paths
                 val linePath = Path()
                 val fillPath = Path()
 
@@ -86,7 +85,7 @@ fun OptimizedGrowthChart(
                 fillPath.lineTo(w, h)
                 fillPath.close()
 
-                // 2. PRE-ALLOCATE OBJECTS: Do not create Brushes or PathEffects inside the draw loop
+                // Pre-allocate objects
                 val gradientBrush = Brush.verticalGradient(listOf(color.copy(alpha = 0.2f), Color.Transparent))
                 val dashEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f))
                 val cursorDashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
@@ -97,13 +96,12 @@ fun OptimizedGrowthChart(
                 val startY = calcY(chartData.first())
 
                 onDrawBehind {
-                    // Static Chart Elements
+                    // Static elements
                     drawLine(baseLineColor, Offset(0f, startY), Offset(w, startY), 2f, pathEffect = dashEffect)
                     drawPath(fillPath, gradientBrush)
                     drawPath(linePath, color, style = strokeStyle)
 
-                    // 3. TARGETED INVALIDATION: Reading touchX here ensures that
-                    // moving your finger only redraws the canvas, it NEVER recalculates the paths above.
+                    // Interaction redraw
                     if (touchX != -1f) {
                         val idx = (touchX * (chartData.size - 1)).toInt().coerceIn(0, chartData.lastIndex)
                         val x = idx * step

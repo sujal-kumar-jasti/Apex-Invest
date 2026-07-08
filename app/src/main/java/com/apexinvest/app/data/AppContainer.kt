@@ -78,7 +78,7 @@ class AppContainer(context: Context) {
             .build()
     }
 
-    // 🆕 NEW: Dedicated Client to bypass Yahoo's bot detection
+    // Yahoo client
     private val yahooOkHttpClient by lazy {
         sharedOkHttpClient.newBuilder()
             .cookieJar(YahooAuthManager.getCookieJar())
@@ -88,7 +88,7 @@ class AppContainer(context: Context) {
             .build()
     }
 
-    // --- API INITIALIZATIONS ---
+    // API Initialization
 
     private val renderRetrofit by lazy {
         Retrofit.Builder()
@@ -99,7 +99,7 @@ class AppContainer(context: Context) {
     }
     val authApiService: ApexAuthApiService by lazy { renderRetrofit.create(ApexAuthApiService::class.java) }
 
-    // 🆕 NEW: Yahoo Finance Retrofit instance
+    // Yahoo Retrofit
     private val yahooRetrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://query1.finance.yahoo.com/")
@@ -183,7 +183,7 @@ class AppContainer(context: Context) {
 
     val tradingViewWebSocketClient by lazy { TradingViewWebSocketClient(sharedOkHttpClient) }
 
-    // --- REPOSITORIES ---
+    // Repositories
 
     val authRepository by lazy {
         AuthRepository(
@@ -218,10 +218,10 @@ class AppContainer(context: Context) {
             transactionDao = database.transactionDao(),
             stockCacheDao = database.stockCacheDao(),
             analysisCacheDao = database.analysisCacheDao(),
-            notificationDao = database.notificationDao(), // 🚀 ADDED
+            notificationDao = database.notificationDao(),
             sessionManager = sessionManager,
             authApiService = authApiService,
-            yahooFinanceApiService = yahooFinanceApiService, // 🆕 Replaced liveStockApiService
+            yahooFinanceApiService = yahooFinanceApiService, // Replaced liveStockApiService
             currencyApiService = currencyService,
             predictionApiService = predictionApiService,
             ideasApi = ideasApi,
@@ -230,7 +230,7 @@ class AppContainer(context: Context) {
         )
     }
 
-    // --- VIEWMODEL FACTORIES ---
+    // ViewModels
 
     val exploreViewModelFactory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

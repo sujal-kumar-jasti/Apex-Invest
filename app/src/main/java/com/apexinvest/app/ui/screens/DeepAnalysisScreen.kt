@@ -317,7 +317,7 @@ fun PremiumForecastChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(280.dp)
-            // 🚀 OPTIMIZATION: Reduced shadow depth for faster scrolling.
+            // Shadow depth
             .shadow(if (isDark) 8.dp else 2.dp, RoundedCornerShape(24.dp), spotColor = BrandPurple.copy(0.2f))
             .glassCard(isDark)
     ) {
@@ -326,7 +326,7 @@ fun PremiumForecastChart(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 24.dp)
-                // 🚀 OPTIMIZATION: Cache paths and text layouts.
+                // Cache paths and layouts
                 .drawWithCache {
                     val w = size.width
                     val h = size.height
@@ -390,7 +390,7 @@ fun PremiumForecastChart(
                     val coneBrush = Brush.verticalGradient(listOf(appColors.trendGreen.copy(0.25f), appColors.trendRed.copy(0.1f)))
                     val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
 
-                    // Pre-measure labels
+                    // Measure labels
                     val labelStyle = TextStyle(
                         color = if (isDark) Color.LightGray else Color.DarkGray,
                         fontSize = 11.sp,
@@ -417,12 +417,12 @@ fun PremiumForecastChart(
 
                         drawLine(color = BrandPurple.copy(0.6f), start = Offset(0f, currentY), end = Offset(w, currentY), strokeWidth = 3f, pathEffect = dashEffect)
 
-                        // Draw Footer Labels
+                        // Footer labels
                         val footerStyle = labelStyle.copy(fontSize = 10.sp)
                         val exchangeInfo = StockMetadataUtils.getExchangeInfo(symbol)
                         val zoneId = java.time.ZoneId.of(exchangeInfo.timezone)
                         
-                        // 🛠️ Precision: Format labels using native exchange timezone
+                        // Format labels
                         val displayFormatter = DateTimeFormatter.ofPattern("MMM dd, HH:mm", Locale.getDefault())
 
                         history.firstOrNull()?.date?.let { rawDate ->

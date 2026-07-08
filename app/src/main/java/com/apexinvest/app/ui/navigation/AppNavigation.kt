@@ -61,7 +61,7 @@ import com.apexinvest.app.viewmodel.PortfolioViewModel
 import com.apexinvest.app.viewmodel.PredictionViewModel
 import com.apexinvest.app.viewmodel.StockDetailViewModel
 
-// --- Core Screen Definitions ---
+// Navigation routes
 sealed class Screen(val route: String) {
     object Splash : Screen("splash_screen")
     object Login : Screen("login_screen")
@@ -360,19 +360,19 @@ private fun XmlBottomNavigationBar(
             val unselectedColor = if (isDark) "#C8CCD5".toColorInt() else "#545454".toColorInt()
 
             val purpleGradientTop = if (isDark)
-                android.graphics.Color.rgb(38, 37, 42) // Extremely subtle dark grey-purple
+                android.graphics.Color.rgb(38, 37, 42) // Dark grey-purple
                 else
-                android.graphics.Color.rgb(240, 238, 245) // ~70% reduction in purple intensity (v. subtle light purple-grey)
+                android.graphics.Color.rgb(240, 238, 245) // Light purple-grey
 
             val barBgColor = if (isDark)
-                android.graphics.Color.rgb(35, 35, 37) // Darkened fill color (from #3A3A3C to ~#232325)
+                android.graphics.Color.rgb(35, 35, 37) // Darkened fill color
                 else
-                android.graphics.Color.rgb(245, 245, 247) // Lightened fill color (from #E5E5EA to ~#F5F5F7)
+                android.graphics.Color.rgb(245, 245, 247) // Lightened fill color
 
             val barBorderColor = if (isDark)
-                android.graphics.Color.argb(80, 255, 255, 255) // Darkened border (reduced white alpha to 31%)
+                android.graphics.Color.argb(80, 255, 255, 255) // Darkened border
                 else
-                android.graphics.Color.argb(30, 0, 0, 0) // Lightened border (reduced black alpha to 12%)
+                android.graphics.Color.argb(30, 0, 0, 0) // Lightened border
 
             val activePillColor = if (isDark) "#339E86FF".toColorInt() else "#20673AB7".toColorInt()
 
@@ -409,7 +409,7 @@ private fun XmlBottomNavigationBar(
                 setColor(activePillColor)
             }
 
-            // Updated function: textId is now nullable
+            // textId is nullable
             fun updateTab(tabId: String, bgId: Int, iconId: Int, textId: Int?) {
                 val isSelected = currentRoute == tabId
 
@@ -419,7 +419,7 @@ private fun XmlBottomNavigationBar(
 
                 view.findViewById<ImageView>(iconId).setColorFilter(if (isSelected) purpleColor else unselectedColor)
 
-                // Only update text properties if a textId was provided
+                // Only update text if textId is provided
                 if (textId != null) {
                     val textView = view.findViewById<TextView>(textId)
                     textView.setTextColor(if (isSelected) purpleColor else unselectedColor)
@@ -431,7 +431,7 @@ private fun XmlBottomNavigationBar(
             updateTab(TAB_EXPLORE, R.id.bg_explore, R.id.icon_explore, R.id.text_explore)
             updateTab(TAB_IDEAS, R.id.bg_ideas, R.id.icon_ideas, R.id.text_ideas)
 
-            // Pass null for textId since the Profile tab no longer has a TextView
+            // Profile tab logic
             updateTab(TAB_PROFILE, R.id.bg_profile, R.id.icon_profile, null)
         }
     )

@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-// --- 1. PORTFOLIO TABLE (Local Database) ---
+// Portfolio table
 @Keep
 @Entity(tableName = "portfolio")
 data class StockEntity(
@@ -19,7 +19,7 @@ data class StockEntity(
     val currentPrice: Double = 0.0,
     val dailyChange: Double = 0.0,
     val changePercent: Double = 0.0,
-    val previousClose: Double = 0.0, // 🆕 Stored for daily gain calculations
+    val previousClose: Double = 0.0, // For daily gain calculations
     val preMarketPrice: Double? = null,
     val preMarketChange: Double? = null,
     val postMarketPrice: Double? = null,
@@ -29,7 +29,7 @@ data class StockEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-// --- 2. WATCHLIST TABLE ---
+// Watchlist table
 @Keep
 @Entity(tableName = "watchlist")
 data class WatchlistEntity(
@@ -40,10 +40,10 @@ data class WatchlistEntity(
     val lastPrice: Double = 0.0,
     val dailyChange: Double = 0.0,
     val changePercent: Double = 0.0,
-    val previousClose: Double = 0.0 // 🆕 Stored for daily gain calculations
+    val previousClose: Double = 0.0 // Stored for daily gain calculations
 )
 
-// --- 3. HELPER MODEL ---
+// Helper model
 @Keep
 data class StockPortfolioItem(
     val symbol: String = "",
@@ -55,7 +55,7 @@ data class StockPortfolioItem(
         cachedPrice: Double = 0.0,
         cachedChange: Double = 0.0,
         cachedChangePercent: Double = 0.0,
-        cachedPrevClose: Double = 0.0, // 🆕 Mapped from API
+        cachedPrevClose: Double = 0.0, // Mapped from API
         companyName: String = "Unknown",
         sector: String = "Unknown"
     ): StockEntity {

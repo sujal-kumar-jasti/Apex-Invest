@@ -87,7 +87,7 @@ import kotlin.time.Duration.Companion.milliseconds
 private val ThemePurple = Color(0xFF673AB7)
 private val ShimmerShape = RoundedCornerShape(4.dp)
 
-// 🚀 STANDARDIZED SHIMMER EFFECT
+// Shimmer effect
 fun Modifier.shimmerEffect(): Modifier = composed {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val shimmerColors = if (isDark) {
@@ -203,7 +203,7 @@ fun ExploreScreen(
 
     BackHandler(enabled = isSearchActive) { onSearchActiveChange(false) }
 
-    // 🚀 ARCHITECTURAL FIX: Replaced Scaffold with a raw Box that conditionally applies statusBarsPadding
+    // Setup padding
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -218,7 +218,7 @@ fun ExploreScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSearchActiveChange(false) })
         }
 
-        // FLOATING SEARCH PILL: 10dp margin applies cleanly below clock OR offline banner
+        // Search bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -303,7 +303,7 @@ fun ExploreContent(
     val global = successData?.globalIndices ?: emptyList()
     val commodities = successData?.commodities ?: emptyList()
 
-    // 🚀 THE FIX: Hardcoded static top padding (10dp top gap + 54dp search + 14dp list gap = 78dp)
+    // Content list
     LazyColumn(
         state = mainListState,
         modifier = Modifier.fillMaxSize(),

@@ -17,7 +17,7 @@ object YahooAuthManager {
     private var cachedCrumb: String? = null
     private val mutex = Mutex()
 
-    // Simple in-memory CookieJar to keep session cookies
+    // Memory CookieJar
     private val cookieJar = object : CookieJar {
         private val cookieStore = mutableMapOf<String, List<Cookie>>()
 
@@ -85,7 +85,7 @@ object YahooAuthManager {
     }
 
     /**
-     * 🚀 Non-blocking getter for the crumb.
+     * Non-blocking getter for crumb.
      */
     fun getCrumbAsync(): String? = cachedCrumb
 

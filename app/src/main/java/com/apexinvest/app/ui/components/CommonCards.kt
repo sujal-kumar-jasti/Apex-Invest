@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-// 1. REUSE SHAPES: Instantiate top-level to avoid memory allocations on lists
+// Reuse shapes
 private val CardShape = RoundedCornerShape(24.dp)
 
 @Composable
@@ -39,11 +39,11 @@ fun StatCard(
     modifier: Modifier = Modifier,
     isDark: Boolean = true
 ) {
-    // 2. MEMOIZE COLORS: Prevent recalculating alphas when scrolling
+    // Memoize colors
     val bgColor = remember(color, isDark) { color.copy(alpha = if (isDark) 0.1f else 0.05f) }
     val borderColor = remember(color) { color.copy(alpha = 0.2f) }
 
-    // 3. THEME INTEGRATION: Fall back to Material theme instead of hardcoded Black/White
+    // Theme integration
     val textColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
 
     Box(
@@ -51,7 +51,7 @@ fun StatCard(
             .clip(CardShape)
             .background(bgColor)
             .border(1.dp, borderColor, CardShape)
-            .padding(16.dp) // 4. FLATTEN: Apply padding to the Box directly instead of the Column
+            .padding(16.dp) // Apply padding directly
     ) {
         Column {
             Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(22.dp))
@@ -104,7 +104,7 @@ fun InsightCard(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape) // Swapped explicit background circle for clip + color
+                    .clip(CircleShape) // Circle background
                     .background(iconBgColor),
                 contentAlignment = Alignment.Center
             ) {

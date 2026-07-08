@@ -9,7 +9,7 @@ import androidx.room.PrimaryKey
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val cloudId: String? = null,  // 🚀 ADD THIS: Maps to the backend UUID
+    val cloudId: String? = null,  // Backend UUID mapping
     val symbol: String,
     val type: TransactionType,    // BUY or SELL
     val quantity: Double,

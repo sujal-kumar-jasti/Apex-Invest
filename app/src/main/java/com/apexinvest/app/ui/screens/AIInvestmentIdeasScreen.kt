@@ -115,7 +115,7 @@ fun AIInvestmentIdeasScreen(
     var showTradeSheet by remember { mutableStateOf(value = false) }
     var stockToBuy by remember { mutableStateOf("") }
 
-    // 🌟 DEFERRED RENDERING: Stops the heavy UI components from breaking the slide animation
+    // Transition delay
     var canRenderHeavyContent by rememberSaveable{ mutableStateOf(false) }
 
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -159,7 +159,7 @@ fun AIInvestmentIdeasScreen(
             .fillMaxSize()
             .background(meshBrush)
     ) {
-        // Renders instantly to give the illusion of a fast load
+        // Header
         CommonScreenHeader(
             onBackClick = if (isBackEnabled) onBack else null,
             applyStatusBarsPadding = isConnected,
@@ -196,7 +196,7 @@ fun AIInvestmentIdeasScreen(
         Spacer(Modifier.height(12.dp))
 
         Box(modifier = Modifier.weight(1f)) {
-            // Only draw the heavy AnimatedContent and Lists if the slide animation is completely finished
+            // Results
             if (canRenderHeavyContent) {
                 AnimatedContent(
                     targetState = selectedFocus,
@@ -245,7 +245,7 @@ fun AIInvestmentIdeasScreen(
                     }
                 }
             } else {
-                // Blank space preserves layout height during animation without blocking UI thread
+                // Animation placeholder
                 Spacer(Modifier.fillMaxSize())
             }
         }

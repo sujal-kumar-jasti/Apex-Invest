@@ -74,7 +74,7 @@ data class MarketPricing(
     @SerializedName("Beta_1Y") val beta1Y: Double?,
     @SerializedName("Beta_5Y") val beta5Y: Double?,
 
-    // 🚀 Extended Hours Data
+    // Extended Hours Data
     @SerializedName("preMarketPrice") val preMarketPrice: Double? = null,
     @SerializedName("preMarketChange") val preMarketChange: Double? = null,
     @SerializedName("postMarketPrice") val postMarketPrice: Double? = null,
@@ -378,7 +378,7 @@ data class StockInfoDto(
     @SerializedName("Williams_R_Pct") val williamsRPct: Double?,
     @SerializedName("Chaikin_Money_Flow") val chaikinMoneyFlow: Double?,
 
-    // 🚀 Extended Hours Data
+    // Extended Hours Data
     @SerializedName("Pre_Market_Price") val preMarketPrice: Double? = null,
     @SerializedName("Pre_Market_Change") val preMarketChange: Double? = null,
     @SerializedName("Post_Market_Price") val postMarketPrice: Double? = null,

@@ -34,7 +34,7 @@ data class YahooChartMeta(
     @SerializedName("fiftyTwoWeekLow") val fiftyTwoWeekLow: Double?,
     @SerializedName("hasPrePostMarketData") val hasPrePostMarketData: Boolean? = null,
 
-    // 🚀 Extended Hours Data
+    // Extended Hours Data
     @SerializedName("preMarketPrice") val preMarketPrice: Double? = null,
     @SerializedName("postMarketPrice") val postMarketPrice: Double? = null,
     @SerializedName("preMarketChange") val preMarketChange: Double? = null,
@@ -74,7 +74,7 @@ data class YahooQuote(
     @SerializedName("volume") val volume: List<Long?>?
 )
 
-// 🚀 Lightweight Quote Models (v7/finance/quote)
+// Lightweight Quote Models (v7/finance/quote)
 @Keep
 data class YahooQuoteResponse(
     @SerializedName("quoteResponse") val quoteResponse: YahooQuoteResultWrapper?

@@ -44,7 +44,7 @@ fun AppMessageBanner(
     type: MessageType = MessageType.INFO,
     onDismiss: () -> Unit
 ) {
-    // 🛠️ FIX: Latch the last known type to prevent color flicker during exit animation
+    // Latch last known type to prevent flicker during exit
     var lastType by remember { mutableStateOf(type) }
     LaunchedEffect(message, type) {
         if (message != null) {

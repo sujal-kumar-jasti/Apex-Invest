@@ -58,7 +58,7 @@ fun EfficiencyRiskPane(
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth()) {
-            // NEW: Apply the formatter directly to analystRatingConsensus right here in the UI
+            // Format analyst rating consensus
             MetricColumn("Consensus Key", formatAnalystRating(ana.analystRatingConsensus), Modifier.weight(1f))
             MetricColumn("Analyst Count", ana.analystCount.fmt(), Modifier.weight(1f))
             MetricColumn("Total Recs", ana.countTotalRecommendations?.toString() ?: "-", Modifier.weight(1f))

@@ -174,7 +174,7 @@ fun DashboardScreen(
     // MAIN ROOT BOX: Allows elements to float on top of the scrolling list
     Box(modifier = Modifier.fillMaxSize().background(meshBrush)) {
 
-        // --- LAYER 1: SCROLLING CONTENT (Placed first so it goes to the bottom) ---
+    // Layer 1: Scrolling Content
         PullToRefreshBox(
             isRefreshing = isManualRefreshing,
             onRefresh = {
@@ -297,7 +297,7 @@ fun DashboardScreen(
             }
         }
 
-        // --- LAYER 2: FLOATING TOP NAV (Aligned to TopCenter) ---
+    // Layer 2: Floating Top Nav
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -309,7 +309,7 @@ fun DashboardScreen(
                 .height(54.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 1. Search Pill (Flexible weight)
+            // Search Pill
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -328,7 +328,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 2. Separate Currency Circle
+            // Currency Toggle
             Box(
                 modifier = Modifier
                     .size(54.dp)
@@ -342,7 +342,7 @@ fun DashboardScreen(
                 Text(text = currencySymbol, fontWeight = FontWeight.Black, color = BrandPurple, fontSize = 18.sp)
             }
 
-            // 3. Separate Notifications Circle
+            // Notifications Button
             Box(
                 modifier = Modifier
                     .size(54.dp)
@@ -362,7 +362,7 @@ fun DashboardScreen(
             }
         }
 
-        // --- LAYER 3: SEARCH OVERLAY FULL SCREEN ---
+    // Layer 3: Search Overlay
         if (isSearchActive) {
             Box(
                 modifier = Modifier

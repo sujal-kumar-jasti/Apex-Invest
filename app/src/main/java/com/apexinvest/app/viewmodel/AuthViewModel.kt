@@ -57,11 +57,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         )
     }
 
-    // 🚀 Added 'n: String' for Name
+    // Sign up with email
     fun signUpWithEmail(e: String, p: String, n: String) = viewModelScope.launch {
         _authState.value = AuthState.Loading
         authRepository.register(e, p).fold(
-            // 🚀 Pass the name into the state
+            // Pass name into state
             onSuccess = { _authState.value = AuthState.OtpVerificationRequired(e, p, n) },
             onFailure = { _authState.value = AuthState.Error(it.message ?: "Registration failed", AuthState.LoggedOut) }
         )
@@ -79,7 +79,7 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         val s = _authState.value
         _authState.value = AuthState.Loading
         if (s is AuthState.OtpVerificationRequired) {
-            // 🚀 Pass s.name to the repository
+            // Pass name to repository
             authRepository.verifyOtp(s.email, s.password, otp, s.name).fold(
                 onSuccess = { _authState.value = AuthState.LoggedIn },
                 onFailure = { _authState.value = AuthState.Error(it.message ?: "Verification failed", s) }
@@ -119,12 +119,12 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     ) = viewModelScope.launch {
         _authState.value = AuthState.Loading
         try {
-            // 🚀 STEP 1: Call Backend to delete account
+            // Call backend to delete account
             val result = authRepository.deleteAccount()
             
             if (result.isSuccess) {
                 withContext(Dispatchers.IO) {
-                    // 🚀 STEP 2: Clear all local data only if backend success
+                    // Clear local data if backend success
                     portfolioViewModel.clearAllData()
                     predictionViewModel.clearAllData()
                     exploreViewModel.clearAllData()

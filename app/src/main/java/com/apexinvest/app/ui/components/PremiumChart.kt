@@ -28,7 +28,7 @@ fun PremiumLineChart(
         return
     }
 
-    // 🚀 Robustness: If only one point, create a horizontal line for rendering
+    // Handle single data point
     val processedPoints = if (dataPoints.size == 1) listOf(dataPoints[0], dataPoints[0]) else dataPoints
 
     val defaultGreen = Color(0xFF00E676)
@@ -36,7 +36,7 @@ fun PremiumLineChart(
     val baseTrendColor = strokeColor ?: if (isPositive) defaultGreen else defaultRed
     val isMiniChart = strokeColor != null
 
-    // 🚀 CRITICAL OPTIMIZATION: Data Downsampling
+    // Data Downsampling
     // Prevents the drawWithCache block from calculating thousands of cubic bezier
     // curves at once during the initial composition spike.
     val optimizedData = remember(processedPoints) {

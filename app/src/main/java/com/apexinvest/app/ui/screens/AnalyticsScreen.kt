@@ -179,17 +179,14 @@ fun AnalyticsProContent(
             Spacer(Modifier.height(24.dp))
         }
 
-        item(key = "performance_grid", contentType = "summary") {
+        item(key = "performance_grid") {
             SectionTitle("Performance Snapshot")
             PerformanceGrid(data.winRate, data.topGainer, data.topLoser, isUsd, onNavigate, isDark)
             Spacer(Modifier.height(32.dp))
         }
 
-        item(key = "influence_matrix_header", contentType = "header") {
+        item(key = "influence_matrix") {
             SectionTitle("Top Impact Drivers")
-        }
-
-        item(key = "influence_matrix", contentType = "chart") {
             PortfolioInfluenceMatrix(
                 topDrivers = data.topDrivers,
                 hiddenCount = data.hiddenImpactCount,
@@ -198,7 +195,7 @@ fun AnalyticsProContent(
             Spacer(Modifier.height(32.dp))
         }
 
-        item(key = "sector_dna", contentType = "summary") {
+        item(key = "sector_dna") {
             SectionTitle("Sector Distribution")
             SectorRingChart(data.sectors, isDark)
             Spacer(Modifier.height(32.dp))
@@ -252,7 +249,7 @@ fun PortfolioHeroSection(
             color = accentColor,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp), // 🚀 CRITICAL FIX: Add height to Chart!
+                .height(220.dp),
             onPointSelected = { selectedIndex = it },
             onSelectionCleared = { selectedIndex = -1 }
         )
@@ -312,13 +309,10 @@ fun PerformanceGrid(winRate: Double, topGainer: StockEntity?, topLoser: StockEnt
     }
 }
 
-// 🚀 REBUILT: Highly Optimized Memoized Ring Chart
-// Calculates drawing vectors exactly once in memory to prevent scroll lag
 @Composable
 fun SectorRingChart(sectors: Map<String, Double>, isDark: Boolean) {
     val colors = remember { listOf(Color(0xFF5C6BC0), Color(0xFF26C6DA), Color(0xFF66BB6A), Color(0xFFFFCA28), Color(0xFFEF5350)) }
 
-    // Memoizing the math: This prevents O(N) sorting and angle math during lazy column recomposition
     val (slices, legendItems) = remember(sectors) {
         val sorted = sectors.entries.sortedByDescending { it.value }
         val total = sorted.sumOf { it.value }.coerceAtLeast(1.0)
@@ -343,7 +337,6 @@ fun SectorRingChart(sectors: Map<String, Double>, isDark: Boolean) {
         Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(110.dp), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
-                    // Pure primitive drawing. Zero math overhead here.
                     slices.forEach { (color, start, sweep) ->
                         drawArc(
                             color = color,
@@ -448,7 +441,6 @@ private fun ImpactDriverRow(
     val baseColor = if (isPositive) Color(0xFF00BFA5) else Color(0xFFFF8A65)
     val barColor = baseColor.copy(alpha = 0.2f)
 
-    // Rendered instantly. No animation delay, no state transition.
     val fraction = (abs(driver.impactScore) / maxAbsImpact).toFloat()
 
     Column(
@@ -488,7 +480,6 @@ private fun ImpactDriverRow(
             }
         }
 
-        // Details panel expansion kept for UI interactivity, but chart bar rendering is instant
         AnimatedVisibility(visible = expanded) {
             Row(
                 modifier = Modifier

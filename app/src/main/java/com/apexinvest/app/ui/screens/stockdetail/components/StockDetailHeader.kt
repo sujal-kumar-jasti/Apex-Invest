@@ -137,10 +137,10 @@ fun PriceHeroSection(
             val isPost = marketState == "POST" || marketState == "POSTPOST" || marketState == "CLOSED"
             val isRegular = marketState == "REGULAR" || marketState == null
 
-            // 🚀 Logic: Only show extended column if the exchange supports it (hasPrePost)
+            // Show extended column if exchange supports it
             val showExtended = hasPrePost && (isPre || isPost || !isRegular)
 
-            // 🚀 SMOOTH TRANSITION: Use AnimatedContent for the whole pricing row to avoid layout jumps
+            // Animated price row to avoid layout jumps
             AnimatedContent(
                 targetState = Triple(price, showExtended, marketState),
                 transitionSpec = { fadeIn().togetherWith(fadeOut()) },

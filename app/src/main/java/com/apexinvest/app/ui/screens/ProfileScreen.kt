@@ -106,7 +106,7 @@ fun ProfileScreen(
     val notificationsEnabled by portfolioViewModel.notificationsEnabled.collectAsState()
     val themeMode by portfolioViewModel.themeMode.collectAsState()
 
-    // 🆕 Trading Presets
+    // Trading Presets
     val defaultBuyQty by portfolioViewModel.defaultBuyQty.collectAsState()
     val defaultSellQty by portfolioViewModel.defaultSellQty.collectAsState()
     var showPresetDialog by remember { mutableStateOf(false) }

@@ -216,7 +216,7 @@ fun TransactionHistory(
     AndroidView(
         modifier = Modifier
             .fillMaxSize()
-            .background(meshBrush) // 🚀 Mesh background applied here!
+            .background(meshBrush) // Mesh background
             .then(if (isConnected) Modifier.statusBarsPadding() else Modifier),
         factory = { ctx ->
             val themedCtx = android.view.ContextThemeWrapper(

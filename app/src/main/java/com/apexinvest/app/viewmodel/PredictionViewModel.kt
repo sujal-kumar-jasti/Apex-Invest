@@ -39,7 +39,7 @@ class PredictionViewModel(
     private val _portfolioHealthState = MutableStateFlow<PortfolioHealthState>(PortfolioHealthState.Idle)
     val portfolioHealthState: StateFlow<PortfolioHealthState> = _portfolioHealthState.asStateFlow()
 
-    // 🚀 MEMORY: Remembers the last queried symbol so we can auto-retry when internet returns
+    // Remembers last queried symbol for auto-retry
     private var lastAnalyzedSymbol: String? = null
 
     // --- FUNCTION 1: Analyze Single Stock ---
@@ -76,7 +76,7 @@ class PredictionViewModel(
                     }
                     else -> {
                         if (status.startsWith("Error", ignoreCase = true) || status.startsWith("Connection Error", ignoreCase = true)) {
-                            // 🚀 THE FIX: Intercept raw Java exceptions and make them human-readable
+                            // Make exceptions human-readable
                             val cleanMsg = sanitizeErrorMessage(status)
                             _analysisState.value = AnalysisState.Error(cleanMsg, data ?: existingData)
                         } else {
@@ -118,7 +118,7 @@ class PredictionViewModel(
                     }
                     else -> {
                         if (status.startsWith("Error", ignoreCase = true)) {
-                            // 🚀 THE FIX: Intercept raw Java exceptions and make them human-readable
+                            // Make exceptions human-readable
                             val cleanMsg = sanitizeErrorMessage(status)
                             _portfolioHealthState.value = PortfolioHealthState.Error(cleanMsg, summary ?: existingSummary)
                         } else {
@@ -130,7 +130,7 @@ class PredictionViewModel(
         }
     }
 
-    // 🚀 THE FIX: Sanitizes ugly technical errors into clean UI states
+    // Sanitize technical errors into clean UI states
     private fun sanitizeErrorMessage(rawError: String): String {
         val lower = rawError.lowercase()
         return when {

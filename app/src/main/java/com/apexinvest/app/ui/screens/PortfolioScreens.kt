@@ -84,7 +84,7 @@ fun PortfolioScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
     initialStockToBuy: String? = null,
-    action: String? = null, // 🚀 ADDED
+    action: String? = null, // Open trade action
     isConnected: Boolean
 ) {
     BackHandler { onBack() }
@@ -96,7 +96,7 @@ fun PortfolioScreen(
     val sparklineCache by portfolioViewModel.sparklineCache.collectAsStateWithLifecycle()
 
     var isManualRefreshing by remember { mutableStateOf(false) }
-    var canRenderHeavyList by rememberSaveable { mutableStateOf(false) }
+    var canRenderHeavyList by rememberSaveable { mutableStateOf(portfolioList.isNotEmpty()) }
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf(initialStockToBuy ?: "") }
@@ -106,7 +106,7 @@ fun PortfolioScreen(
     val meshBrush = remember(isDark) { Brush.verticalGradient(listOf(BrandPurple.copy(alpha = if (isDark) 0.12f else 0.05f), Color.Transparent)) }
     val pullRefreshState = rememberPullToRefreshState()
 
-    // 🚀 FIX: Deferred rendering to prevent navigation jank (matching Ideas screen logic)
+    // Render delay
     LaunchedEffect(Unit) {
         if (!canRenderHeavyList) {
             delay(350.milliseconds)
@@ -140,7 +140,7 @@ fun PortfolioScreen(
     Box(modifier = Modifier.fillMaxSize().background(meshBrush)) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // 🚀 USE VIEWMODEL STATS DIRECTLY TO PREVENT POP-IN JANK
+            // Stats
             portfolioStats?.let { stats ->
                 GlassWalletHeaderCard(
                     totalVal = stats.totalValue,
@@ -155,7 +155,7 @@ fun PortfolioScreen(
                 )
             } ?: Box(modifier = Modifier.fillMaxWidth().statusBarsPadding().height(220.dp).padding(horizontal = 20.dp, vertical = 10.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(32.dp)))
 
-            // 🚀 RENDER HOLDINGS TITLE IMMEDIATELY
+            // Holdings title
             Text("HOLDINGS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
 
             if (canRenderHeavyList) {
@@ -196,7 +196,7 @@ fun PortfolioScreen(
                     }
                 }
             } else {
-                // Smooth shimmer placeholder during transition
+                // Shimmer
                 Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
                     repeat(5) {
                         val alpha = com.apexinvest.app.ui.components.rememberShimmerAlpha()
@@ -320,7 +320,7 @@ fun EmptyPortfolioView(onAddClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 20.dp)
-            .height(180.dp) // 🚀 Slightly taller for button
+            .height(180.dp) // Taller for button
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
         contentAlignment = Alignment.Center

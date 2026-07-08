@@ -11,8 +11,7 @@ data class PriceData(
 )
 
 /**
- * 🚀 COMMON VARIABLE: Single source of truth for current prices across all screens.
- * This is maintained in-memory for instant access and shared between Dashboard/Details.
+ * Shared in-memory cache for current prices across all screens.
  */
 object SessionPriceCache {
     private val cache = ConcurrentHashMap<String, PriceData>()

@@ -66,7 +66,7 @@ class StockDetailViewModel(
     private val _livePricing = MutableStateFlow<MarketPricing?>(null)
     val livePricing: StateFlow<MarketPricing?> = _livePricing
 
-    // 🚀 NEW: Dedicated StateFlow for candles to prevent flicker
+    // StateFlow for candles
     private val _activeCandles = MutableStateFlow<List<CandlePoint>>(emptyList())
     val activeCandles: StateFlow<List<CandlePoint>> = _activeCandles
 
@@ -100,14 +100,13 @@ class StockDetailViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
-        // 🚀 REAL-TIME SYNC: Listen for price updates from OTHER screens (Dashboard)
+        // Sync price updates from other screens
         viewModelScope.launch {
             portfolioRepository.globalPriceUpdates.collect { update ->
                 val state = _stockDetailState.value
                 val ticker = if (state is StockDetailState.Success) state.data.ticker else ""
                 
-                // 🚀 FIX: Only process if it's NOT a recent tick from this VM's own WebSocket
-                // and the symbol matches.
+                // Only process if not a recent local tick
                 val isRecentLocalTick = (System.currentTimeMillis() - lastPriceTickTime) < 1000
                 
                 if (ticker.equals(update.symbol, ignoreCase = true) && !isRecentLocalTick) {
@@ -146,13 +145,13 @@ class StockDetailViewModel(
         val currentState = _stockDetailState.value as? StockDetailState.Success
         val currentData = currentState?.data
 
-        // 🚀 SYMBOL CHANGE: Full reload required
+        // Full reload required on symbol change
         if (currentData?.ticker?.uppercase(Locale.ROOT) != normalizedSymbol) {
             _stockDetailState.value = StockDetailState.Loading
             _financialsState.value = FinancialsUiState.Loading
 
             viewModelScope.launch(Dispatchers.Default) {
-                // 🚀 COMMON VARIABLE SYNC: Check the shared session cache first
+                // Check shared session cache
                 val sessionData = SessionPriceCache.get(normalizedSymbol)
                 
                 val ramSparkline = portfolioRepository.getCachedSparklineSync(normalizedSymbol)
@@ -176,7 +175,7 @@ class StockDetailViewModel(
                 }
             }
         } else {
-            // 🚀 RANGE SWITCH: Keep existing live pricing and candles for smooth transition
+            // Keep live pricing and candles for smooth transition
             _stockDetailState.value = StockDetailState.Success(currentData, isRefreshing = true)
         }
 
@@ -187,7 +186,7 @@ class StockDetailViewModel(
                     result.onSuccess { data ->
                         val activeState = _stockDetailState.value as? StockDetailState.Success
                         
-                        // 🚀 ABSOLUTE SOURCE OF TRUTH: Always prioritize SessionPriceCache during range switches
+                        // Prioritize SessionPriceCache
                         val sessionData = SessionPriceCache.get(normalizedSymbol)
                         val mirroredPrice = sessionData?.price ?: lastSeenPrice.let { if (it > 0.0) it else null } ?: data.marketPricing?.priceLast ?: 0.0
                         
@@ -203,7 +202,7 @@ class StockDetailViewModel(
                             postMarketChange = data.marketPricing.postMarketChange ?: activeState?.data?.marketPricing?.postMarketChange
                         )
 
-                        // 🚀 LATCHING: Preserve range changes if the new fetch is still loading/null
+                        // Preserve range changes
                         val finalRangeAbs = if (data.rangeChangeAbsolute != null && data.rangeChangeAbsolute != 0.0) data.rangeChangeAbsolute else activeState?.data?.rangeChangeAbsolute
                         val finalRangePct = if (data.rangeChangePercent != null && data.rangeChangePercent != 0.0) data.rangeChangePercent else activeState?.data?.rangeChangePercent
 
@@ -216,7 +215,7 @@ class StockDetailViewModel(
                             _livePricing.value = updatedPricing
                         }
 
-                        // 🚀 SMOOTH UPDATE: Merge candles carefully
+                        // Merge candles
                         if (data.candles.isNotEmpty()) {
                             val newCandles = data.candles.map { dto ->
                                 CandlePoint(
@@ -296,10 +295,10 @@ class StockDetailViewModel(
     private fun startPollingUpdates(symbol: String) {
         pollingJob = viewModelScope.launch {
             while (isActive) {
-                // 🚀 FETCH: Request latest price including pre/post market
+                // Fetch latest price
                 loadCurrentPrice(symbol, forceNetwork = true)
                 
-                // 🚀 POLLING INTERVAL: Wait exactly 8 seconds as requested
+                // Polling interval
                 delay(8.seconds)
             }
         }
@@ -326,11 +325,11 @@ class StockDetailViewModel(
     ) {
         if (price <= 0.0) return
         
-        // 🚀 SYNC: Immediately update local state and tick time
+        // Update local state and tick time
         lastSeenPrice = price
         lastPriceTickTime = System.currentTimeMillis()
 
-        // 🚀 BROADCAST: Inform the rest of the app about this WebSocket tick
+        // Inform the rest of the app about this WebSocket tick
         viewModelScope.launch(Dispatchers.IO) {
             val currentState = _stockDetailState.value as? StockDetailState.Success
             val pricing = currentState?.data?.marketPricing
@@ -348,7 +347,7 @@ class StockDetailViewModel(
     }
 
     /**
-     * 🚀 Process the price update on a background thread to prevent UI jank.
+     * Process price update on background thread
      */
     private fun applyLivePriceUpdate(
         symbol: String,
@@ -394,7 +393,7 @@ class StockDetailViewModel(
             val currentData = currentState?.data ?: return@launch
             val pricing = currentData.marketPricing
 
-            // 🚀 OPTIMIZATION: O(1) Memory check
+            // Memory check
             val localStock = portfolioStocks.value.find { it.symbol.equals(symbol, ignoreCase = true) }
             val localWatch = watchlistStocks.value.find { it.symbol.equals(symbol, ignoreCase = true) }
             val prevClose = localStock?.previousClose ?: localWatch?.previousClose ?: pricing?.previousClose ?: 0.0
@@ -402,7 +401,7 @@ class StockDetailViewModel(
             val finalChange = if (prevClose > 0.0) price - prevClose else 0.0
             val finalChangePercent = if (prevClose > 0.0) (finalChange / prevClose) * 100.0 else 0.0
 
-            // 🚀 OPTIMIZATION: Throttle DB writes
+            // Throttle DB writes
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastDbWriteTime > 5000) {
                 launch(Dispatchers.IO) {
@@ -436,12 +435,12 @@ class StockDetailViewModel(
                 marketState = marketState
             )
 
-            // 🚀 THE FIX: Only update _livePricing to prevent whole-screen flicker
+            // Update live pricing
             if (_livePricing.value != updatedPricing) {
                 _livePricing.value = updatedPricing
             }
 
-            // 🚀 LIVE CHART UPDATE: Smoothly update the last candle point in the VM
+            // Smoothly update the last candle point
             if (_selectedRange.value == "1D" && _activeCandles.value.isNotEmpty()) {
                 val (isRegularOpen, _) = StockMetadataUtils.isMarketOpen(symbol)
                 if (isRegularOpen) {

@@ -5,18 +5,18 @@ import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-// --- NEW ISOLATED MICRO-METADATA DTOs ---
+// Micro-metadata DTOs
 
 @Keep
 data class TvMetaResponse(
     @SerializedName("symbol") val symbol: String,
-    @SerializedName("resolved_ticker") val resolvedTicker: String, // 🆕 Added to capture the backend's matched key
+    @SerializedName("resolved_ticker") val resolvedTicker: String, // Backend matched key
     @SerializedName("company_name") val companyName: String,
     @SerializedName("sector") val sector: String,
     @SerializedName("industry") val industry: String
 )
 
-// --- RETROFIT INTERFACE ---
+// Retrofit interface
 interface TradingViewStockApiService {
 
     @GET("stock/meta")

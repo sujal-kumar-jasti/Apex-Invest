@@ -71,7 +71,7 @@ fun SplashScreen(
     val alpha = remember { Animatable(0f) }
     var animationsFinished by remember { mutableStateOf(false) }
 
-    // 🚀 OPTIMIZATION: Play animations and leave immediately. Do not wait for data.
+    // Play animations and leave immediately
     LaunchedEffect(key1 = true) {
         launch {
             scale.animateTo(
@@ -92,7 +92,7 @@ fun SplashScreen(
         animationsFinished = true
     }
 
-    // 🚀 OPTIMIZATION: Trigger navigation the millisecond the animation is done.
+    // Trigger navigation when animation is done
     LaunchedEffect(animationsFinished) {
         if (animationsFinished) {
             onTasksFinished()

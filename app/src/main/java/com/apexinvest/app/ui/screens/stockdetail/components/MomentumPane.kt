@@ -59,14 +59,14 @@ fun MomentumPane(
     isDark: Boolean
 ) {
     if (ret == null) {
-        // Fallback or Shimmer state loader placeholder block
+        // Loading state
         Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
             Text("Loading Performance Metrics...", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
 
-    // Modern glass-styled metric summary grid layout
+    // Metric summary
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             ExplainerMetricColumn("1 Week", ret.return1W.fmtPct(), getSentiment(ret.return1W, 0.0, 0.0),
@@ -93,7 +93,7 @@ fun MomentumPane(
 
     Spacer(Modifier.height(24.dp))
 
-    // Yearly Overlapping seasonality view panel
+    // Comparison trends
     Text(
         text = "Yearly Comparison Trends",
         style = MaterialTheme.typography.titleMedium,
@@ -101,7 +101,7 @@ fun MomentumPane(
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
     )
 
-    // Accept either 5D or 1W based adjustments comfortably
+    // Check range
     if (currentRange != "MAX" && currentRange != "5Y") {
         Box(
             modifier = Modifier
@@ -129,7 +129,7 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
     val appColors = LocalAppColors.current
     val yearFormatter = remember { SimpleDateFormat("yyyy", Locale.getDefault()) }
 
-    // Fixes blank render problem by validating raw epochs along with standard ISO string styles
+    // Parse years from timestamps
     val yearlyData = remember(candles) {
         val groups = mutableMapOf<String, MutableList<CandlePoint>>()
         candles.forEach { c ->
@@ -146,7 +146,7 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
             }
         }
 
-        // Pick the 3 most recent sequential calendar years to prevent overlapping graph clutter
+        // Pick 3 most recent years
         groups.entries
             .sortedByDescending { it.key }
             .take(3)
@@ -217,10 +217,10 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
                         }
 
                         onDrawBehind {
-                            // Baseline zero reference indicator line
+                            // Reference line
                             drawLine(color = onSurface.copy(0.15f), start = Offset(0f, zeroY), end = Offset(w, zeroY), strokeWidth = 1.dp.toPx())
 
-                            // Y-Axis Metric scale labels
+                            // Scale labels
                             val textStyle = TextStyle(color = onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Medium)
                             drawText(
                                 textMeasurer = textMeasurer,
@@ -244,7 +244,7 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
                                 softWrap = false
                             )
 
-                            // Draw normalized relative curves
+                            // Relative curves
                             yearlyData.forEachIndexed { i, (_, pcts) ->
                                 val color = colors[i % colors.size]
                                 drawPath(yearPaths[i], color, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round))
@@ -256,7 +256,7 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
                                 }
                             }
 
-                            // Interaction scrub overlay
+                            // Scrub overlay
                             touchX?.let { tX ->
                                 val clampedTx = tX.coerceIn(0f, w)
                                 val index = (clampedTx / stepX).toInt().coerceIn(0, maxDaysInYear - 1)
@@ -317,7 +317,7 @@ fun YearlySeasonalityChart(candles: List<CandlePoint>, isDark: Boolean) {
             )
         }
 
-        // Inline color legends row
+        // Color legend
         Row(
             modifier = Modifier.padding(start = 8.dp, top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)

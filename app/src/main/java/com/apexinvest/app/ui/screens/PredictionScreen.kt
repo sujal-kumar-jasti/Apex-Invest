@@ -86,7 +86,7 @@ fun PredictionScreen(
     portfolioViewModel: PortfolioViewModel,
     predictionViewModel: PredictionViewModel,
     onBack: () -> Unit,
-    onNavigateToPortfolio: () -> Unit, // 🚀 ADDED
+    onNavigateToPortfolio: () -> Unit,
     isConnected: Boolean
 ) {
     LaunchedEffect(Unit) {
@@ -200,7 +200,7 @@ fun PredictionScreen(
                                 healthState,
                                 portfolioState.portfolio.isEmpty(),
                                 isDark,
-                                onNavigateToPortfolio = onNavigateToPortfolio // 🚀 PASS
+                                onNavigateToPortfolio = onNavigateToPortfolio
                             ) { stockResponse ->
                                 predictionViewModel.setAnalysisData(stockResponse)
                                 selectedSymbol = stockResponse.symbol
@@ -221,7 +221,7 @@ fun PortfolioHealthTab(
     state: PortfolioHealthState,
     isEmpty: Boolean,
     isDark: Boolean,
-    onNavigateToPortfolio: () -> Unit, // 🚀 ADDED
+    onNavigateToPortfolio: () -> Unit,
     onStockClick: (DeepAnalysisResponse) -> Unit
 ) {
     if (isEmpty) {

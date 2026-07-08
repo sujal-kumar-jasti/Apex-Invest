@@ -33,15 +33,14 @@ object YahooParser {
         val result = response.chart?.result?.firstOrNull()
         val meta = result?.meta
 
-        // 1. Extract the deep numerical data arrays
+        // Numerical data
         val quoteBlock = result?.indicators?.quote?.firstOrNull()
 
-        // 2. Fetch the absolute latest market close tick from the live chart series array
+        // Latest close price
         val lastSequencePrice = quoteBlock?.close?.lastOrNull { it != null && it > 0.0 }
 
-        // 3. Fallback priority for true live current price handling
-        // 🚀 CRITICAL FIX: price should ONLY be the Regular Market price. 
-        // We MUST NOT use lastSequencePrice here because it contains After-Hours data.
+        // Current price fallback
+        // Price must be regular market price only
         val price = meta?.regularMarketPrice ?: meta?.currentPrice ?: 0.0
         val prevClose = meta?.previousClose ?: meta?.chartPreviousClose ?: meta?.officialPreviousClose ?: 0.0
 
@@ -57,7 +56,7 @@ object YahooParser {
         val yearHigh = meta?.fiftyTwoWeekHigh ?: 0.0
         val yearLow = meta?.fiftyTwoWeekLow ?: 0.0
 
-        // 🚀 SMART STATE DETECTION: If marketState is missing, infer it from exchange hours
+        // Infer market state if missing from exchange hours
         val detectedState = meta?.marketState ?: run {
             val (isOpen, _) = com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(symbol)
             if (isOpen) "REGULAR" else "CLOSED"
@@ -72,7 +71,7 @@ object YahooParser {
         val isPre = detectedState == "PRE" || detectedState == "PREPRE"
         val isPost = detectedState == "POST" || detectedState == "POSTPOST" || detectedState == "CLOSED"
 
-        // 🚀 DIRECT EXTRACTION: Extract the pre/post extended market calculations from the sequence data
+        // Extract pre/post market calculations from sequence data
         val prePrice = meta?.preMarketPrice
             ?: (if (isPre) (lastSequencePrice ?: meta?.extendedMarketPrice) else null)
         val preChange = meta?.preMarketChange
@@ -128,8 +127,7 @@ object YahooParser {
     }
 
     /**
-     * 🚀 PRECISE ROLLING WINDOW: Always show from "Previous Trading Day Same Time" to "Today Same Time".
-     * This handles weekends and holidays by stepping back to the last active session.
+     * Filter rolling window for previous session same time.
      */
     fun filterRollingWindow(symbol: String, candles: List<CandlePointDto>): List<CandlePointDto> {
         if (candles.isEmpty()) return emptyList()
@@ -139,7 +137,7 @@ object YahooParser {
         val zoneId = try { java.time.ZoneId.of(exchangeInfo.timezone) } catch (_: Exception) { java.time.ZoneId.of("UTC") }
         val lastZdt = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochSecond(lastTimestamp), zoneId)
 
-        // Find previous trading session's same time
+        // Skip weekends
         var startZdt = lastZdt.minusDays(1)
         while (startZdt.dayOfWeek.value > 5) { // Skip Sat/Sun
             startZdt = startZdt.minusDays(1)

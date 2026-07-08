@@ -104,7 +104,7 @@ fun StockDetailScreen(
     val canSell by stockDetailViewModel.canSell.collectAsStateWithLifecycle()
     val tradeMessage by stockDetailViewModel.tradeStatusMessage.collectAsStateWithLifecycle()
 
-    // 🚀 NEW: Watch for the global UI message banner
+    // Global UI message
     val uiMessage by portfolioViewModel.uiMessage.collectAsStateWithLifecycle()
 
     LaunchedEffect(tradeMessage) {
@@ -260,7 +260,7 @@ fun StockDetailScreen(
         }
     }
 
-    // 🚀 THE FIX: Check if EITHER the offline banner OR a message banner is visible
+    // Check if banner is visible
     val isTopBannerVisible = !isConnected || uiMessage != null
 
     Box(
@@ -290,7 +290,7 @@ fun StockDetailScreen(
                     symbol = symbol,
                     onRangeSelected = {
                         currentRange = it
-                        loadingRange = it // 🚀 UX: Lock values for new range
+                        loadingRange = it // Lock values for new range
                         stockDetailViewModel.loadStockDetails(symbol, it)
                     },
                     onPeerClick = onNavigateToStock,
@@ -373,8 +373,8 @@ fun StockDetailContent(
     onPeerClick: (String) -> Unit,
     formatAnalystRating: (String?) -> String,
     financialsState: FinancialsUiState,
-    latchedData: StockDetailsResponse, // 🆕 Pass latched data for stable transitions
-    isLoadingRange: Boolean = false // 🆕 Lock values during range switch
+    latchedData: StockDetailsResponse, // Pass latched data for stable transitions
+    isLoadingRange: Boolean = false // Lock values during range switch
 ) {
     val scrollState = rememberScrollState()
     var chartType by remember { mutableStateOf(ChartType.LINE) }
@@ -385,7 +385,7 @@ fun StockDetailContent(
         loadedTabs[selectedTab] = true
     }
 
-    // 🚀 ABSOLUTE SOURCE OF TRUTH for Price: Prefer Live WebSocket/Quote Flow
+    // Source of truth for price
     val lastPrice = remember(livePricing, data) { 
         livePricing?.priceLast ?: data.marketPricing?.priceLast ?: 0.0 
     }
@@ -430,7 +430,7 @@ fun StockDetailContent(
             }
         }
         
-        // 🚀 LATCHING: If we are refreshing and the new value is 0.0, hold the old one from latchedData
+        // Latch old value if new is 0.0
         if (calc == 0.0 && latchedData.rangeChangePercent != null && latchedData.rangeChangePercent != 0.0) {
             latchedData.rangeChangePercent
         } else calc
@@ -469,7 +469,7 @@ fun StockDetailContent(
                     if (isChartLoading && liveCandles.isEmpty()) {
                         GlassShimmer(260.dp)
                     } else {
-                        // 🚀 CHART SYNC: Ensure the chart uses the same STABLE price as the header
+                        // Chart sync
                         OptimizedGlassChart(liveCandles, chartType, lastPrice, isDynamicPositive, isDark, currencyCode, currentRange, symbol)
                     }
                 }

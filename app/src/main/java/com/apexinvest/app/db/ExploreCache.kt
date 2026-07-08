@@ -14,7 +14,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 
-// --- ENTITY ---
+// Entity
 @Entity(tableName = "explore_cache")
 @TypeConverters(ExploreConverters::class)
 data class ExploreCacheEntity(
@@ -32,7 +32,7 @@ data class ExploreCacheEntity(
     val lastUpdated: Long = System.currentTimeMillis()
 )
 
-// --- DAO ---
+// DAO
 @Dao
 interface ExploreDao {
     @Query("SELECT * FROM explore_cache WHERE id = 0")
@@ -45,7 +45,7 @@ interface ExploreDao {
     suspend fun clearCache()
 }
 
-// --- CONVERTERS ---
+// Converters
 class ExploreConverters {
     private val gson = Gson()
 

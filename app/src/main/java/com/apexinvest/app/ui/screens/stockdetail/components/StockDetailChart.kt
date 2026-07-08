@@ -66,7 +66,7 @@ fun OptimizedGlassChart(
     isDark: Boolean,
     currency: String,
     currentRange: String,
-    symbol: String // 🆕 Added symbol to resolve native exchange timezone
+    symbol: String // Symbol to resolve exchange timezone
 ) {
     if (candles.isEmpty()) return
     val textMeasurer = rememberTextMeasurer()
@@ -78,7 +78,7 @@ fun OptimizedGlassChart(
     val trendGreen = appColors.trendGreen
     val trendRed = appColors.trendRed
 
-    // 🛠️ FIX: Dynamic date formatting based on timeframe AND Exchange Timezone
+    // Dynamic date formatting based on timeframe and exchange timezone
     val exchangeInfo = remember(symbol) { StockMetadataUtils.getExchangeInfo(symbol) }
     val zoneId = remember(exchangeInfo) { ZoneId.of(exchangeInfo.timezone) }
 
@@ -193,7 +193,7 @@ fun OptimizedGlassChart(
                         drawCircle(mainColor, 6.dp.toPx(), Offset(x, y))
                         drawCircle(Color.White, 2.5.dp.toPx(), Offset(x, y))
 
-                        // 🛠️ ROBUST FORMATTING: Support both epoch seconds and formatted strings
+                        // Support both epoch seconds and formatted strings
                         val formattedTime = if (pt.time.all { it.isDigit() } && pt.time.length >= 10) {
                             val epochTime = pt.time.toLongOrNull() ?: 0L
                             try {

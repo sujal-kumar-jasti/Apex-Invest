@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <!-- Default Header Content -->
-        <!-- 🚀 FIX: Removed btnSync from this group so it can be controlled independently -->
+        <!-- btnSync removed from group for independent control -->
         <androidx.constraintlayout.widget.Group
             android:id="@+id/groupDefaultMode"
             android:layout_width="wrap_content"

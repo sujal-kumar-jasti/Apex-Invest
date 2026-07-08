@@ -11,7 +11,7 @@ data class StockCacheEntity(
     val price: Double,
     val change: Double,
     val changePercent: Double,
-    val previousClose: Double = 0.0, // 🆕 Stored to maintain session consistency
+    val previousClose: Double = 0.0, // Maintain session consistency
     val preMarketPrice: Double? = null,
     val preMarketChange: Double? = null,
     val postMarketPrice: Double? = null,
@@ -26,6 +26,6 @@ data class StockCacheEntity(
 data class AnalysisCacheEntity(
     @PrimaryKey val key: String, // e.g., "DEEP_NVDA" or "PORTFOLIO_SUMMARY"
     val dataJson: String,
-    val signature: String = "", // 🆕 Signature to track state changes (e.g., portfolio hash)
+    val signature: String = "", // Track state changes
     val timestamp: Long = System.currentTimeMillis()
 )

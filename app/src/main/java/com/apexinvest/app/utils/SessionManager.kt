@@ -70,8 +70,8 @@ class SessionManager(context: Context) {
 
     /**
      * Helper to decrypt data using Tink.
-     * 🛡️ BLOCKING: Since AEAD is initialized on a background thread, this will block
-     * if called before initialization is complete. This is why it MUST be called from IO context.
+     * BLOCKING: Since AEAD is initialized on a background thread, this will block
+     * if called before initialization is complete. Must be called from IO context.
      */
     private fun decrypt(encryptedValue: String?): String? {
         if (encryptedValue.isNullOrBlank()) return encryptedValue
@@ -106,16 +106,16 @@ class SessionManager(context: Context) {
         email: String,
         userId: String? = null,
         isGoogle: Boolean = false,
-        name: String? = null,       // 🚀 ADDED
-        profilePic: String? = null  // 🚀 ADDED
+        name: String? = null,
+        profilePic: String? = null
     ) {
         prefs.edit {
             putString(USER_TOKEN, encrypt(token))
             putString(USER_EMAIL, encrypt(email))
             putString(USER_ID, encrypt(userId))
             putString(IS_GOOGLE_USER, encrypt(isGoogle.toString()))
-            putString(USER_NAME, encrypt(name))             // 🚀 ADDED
-            putString(USER_PROFILE_PIC, encrypt(profilePic))// 🚀 ADDED
+            putString(USER_NAME, encrypt(name))
+            putString(USER_PROFILE_PIC, encrypt(profilePic))
         }
     }
 
@@ -141,7 +141,7 @@ class SessionManager(context: Context) {
         return if (!token.isNullOrBlank()) "Bearer $token" else null
     }
 
-    // 🆕 Trading Presets
+    // Trading Presets
     fun saveTradingPresets(buyQty: Double, sellQty: Double) {
         prefs.edit {
             putFloat(DEFAULT_BUY_QTY, buyQty.toFloat())

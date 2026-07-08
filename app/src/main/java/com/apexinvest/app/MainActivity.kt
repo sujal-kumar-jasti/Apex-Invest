@@ -139,8 +139,7 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.fillMaxSize()) {
                         val uiMessage by portfolioViewModel.uiMessage.collectAsState()
 
-                        // 1. SYSTEM INSETS LAYER (Banners go here)
-                        // 🚀 FIX: Only apply padding and show Column if there's actually a banner
+                        // Show banner if offline or if there is a message
                         if (!isConnected || uiMessage != null) {
                             Column(modifier = Modifier.fillMaxWidth().statusBarsPadding().consumeWindowInsets(WindowInsets.statusBars)) {
                                 if (!isConnected) {
@@ -263,13 +262,13 @@ fun ApexInvestApp(
                 permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
 
-            // 🚀 FIX: Updated to route to Screen.Main.route instead of deprecated "main_pager"
+            // Navigate to main screen on login
             if (currentRoute == Screen.Login.route || currentRoute == Screen.SignUp.route) {
                 portfolioViewModel.onLoginSuccess()
                 navController.navigate(Screen.Main.route) { popUpTo(0) { inclusive = true } }
             }
 
-            // 🚀 FIX: Updated routing condition
+            // Handle deep links
             if (currentRoute == Screen.Main.route && pendingLink != null) {
                 val link = pendingLink!!
                 when {

@@ -51,7 +51,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 
-// Palette matching Premium Glass Financial Engines
+// Color palette
 private val ChartBlue = Color(0xFF3B82F6)
 private val ChartCyan = Color(0xFF06B6D4)
 private val ChartOrange = Color(0xFFF97316)
@@ -110,7 +110,7 @@ fun ScorecardPane(
             }
 
             Column(Modifier.fillMaxWidth()) {
-                // 1. PERFORMANCE COMBO
+                // Performance
                 ChartCardContainer("Performance Trends", perfPeriod, { perfPeriod = it }, isDark) {
                     if (perfPeriods.isNotEmpty()) {
                         PerformanceCanvas(perfPeriods, isDark)
@@ -129,7 +129,7 @@ fun ScorecardPane(
 
                 Spacer(Modifier.height(16.dp))
 
-                // 2. REVENUE WATERFALL
+                // Waterfall
                 ChartCardContainer("Revenue to Profit Conversion", waterfallPeriod, { waterfallPeriod = it }, isDark) {
                     val latestFinancialPeriod = waterfallPeriods.lastOrNull()
                     if (latestFinancialPeriod != null) {
@@ -150,7 +150,7 @@ fun ScorecardPane(
 
                 Spacer(Modifier.height(16.dp))
 
-                // 3. DEBT & COVERAGE
+                // Debt
                 ChartCardContainer("Debt Level and Coverage Balance", debtPeriod, { debtPeriod = it }, isDark) {
                     if (debtPeriods.isNotEmpty()) {
                         DebtCoverageCanvas(debtPeriods, isDark)
@@ -169,7 +169,7 @@ fun ScorecardPane(
 
                 Spacer(Modifier.height(16.dp))
 
-                // 4. EARNINGS SCATTER
+                // Earnings
                 ChartCardContainer("Earnings Tracking Metrics", earningsPeriod, { earningsPeriod = it }, isDark) {
                     if (earningsList.isNotEmpty()) {
                         EarningsScatterCanvas(earningsList, isDark)
@@ -189,9 +189,7 @@ fun ScorecardPane(
     }
 }
 
-// ==========================================
-// CANVASES (MATHEMATICAL COMPOSING ENGINES)
-// ==========================================
+// Canvases
 
 @Composable
 private fun PerformanceCanvas(periods: List<ChartFinancialPeriod>, isDark: Boolean) {
@@ -518,9 +516,7 @@ private fun EarningsScatterCanvas(earnings: List<ChartEarningsPeriod>, isDark: B
     }
 }
 
-// ==========================================
-// DECORATION MODULES & WRAPPER CONTAINERS
-// ==========================================
+// Helpers
 
 @Composable
 private fun ChartCardContainer(

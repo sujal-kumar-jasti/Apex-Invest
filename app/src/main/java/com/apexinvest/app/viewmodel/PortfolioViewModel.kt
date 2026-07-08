@@ -81,7 +81,7 @@ data class AppUiState(
     val isHydrated: Boolean = false
 )
 
-// 🚀 NEW: Data class specifically formatted for the Top Impact Drivers UI
+// Data class for Top Impact Drivers UI
 data class ImpactDriver(
     val symbol: String,
     val allocationPercent: Double,
@@ -95,8 +95,8 @@ sealed class AnalyticsUiState {
     data class Success(
         val totalValue: Double,
         val sectors: Map<String, Double>,
-        val topDrivers: List<ImpactDriver>, // 🚀 UI receives pre-sorted, pre-sliced data
-        val hiddenImpactCount: Int,         // 🚀 UI knows how many were skipped without receiving the list
+        val topDrivers: List<ImpactDriver>, // UI receives pre-sorted data
+        val hiddenImpactCount: Int,         // UI metadata for skipped items
         val topGainer: StockEntity?,
         val topLoser: StockEntity?,
         val winRate: Double,
@@ -216,7 +216,7 @@ class PortfolioViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, TransactionAnalyticsState())
 
-    // 🚀 ARCHITECTURE UPGRADE: Pre-chewed State Strategy applied here
+    // Optimized State Strategy
     val analyticsState: StateFlow<AnalyticsUiState> = combine(
         portfolioStocks,
         _uiState.map { it.isUsd }.distinctUntilChanged(),
@@ -303,7 +303,7 @@ class PortfolioViewModel(
                     val oldPortfolio = _uiState.value.portfolio
                     _uiState.update { it.copy(portfolio = portfolio, watchlist = watchlist) }
 
-                    // 🚀 DETECT NEW SYMBOLS: If a new symbol is added, trigger a standard rolling fetch
+                    // Fetch prices for new symbols
                     val currentSymbols = portfolio.map { it.symbol.uppercase() }.toSet()
                     val oldSymbols = oldPortfolio.map { it.symbol.uppercase() }.toSet()
                     val newSymbols = currentSymbols - oldSymbols
@@ -418,7 +418,7 @@ class PortfolioViewModel(
                     val chart = currentSparklines[stock.symbol]?.toMutableList()
                     if (!chart.isNullOrEmpty()) {
                         if (com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(stock.symbol).first) {
-                            // 🚀 LIVE UPDATE ONLY: Stop manual window shifting (handled by Repo/YahooParser)
+                            // Live price updates
                             val last = chart.last()
                             chart[chart.size - 1] = last.copy(
                                 close = stock.currentPrice,
@@ -435,8 +435,7 @@ class PortfolioViewModel(
 
             val newStats = MathUtils.calculatePortfolioStats(list, isUsd, rates, currentSparklines)
 
-            // 🚀 ARCHITECTURE UPGRADE: Downsample Chart Data (Strategy 3)
-            // If the data set exceeds 150 points, mathematically buckle it to avoid overwhelming the Canvas UI.
+            // Downsample chart data if it exceeds 150 points
             val maxCanvasPoints = 150
             val optimizedChartData = if (newStats.chartData.size > maxCanvasPoints) {
                 downsampleChartData(newStats.chartData, maxCanvasPoints)
@@ -449,7 +448,7 @@ class PortfolioViewModel(
         }
     }
 
-    // 🚀 NEW: Fast decimation algorithm ensuring O(N) smooth downsampling for UI rendering
+    // O(N) downsampling for UI rendering
     private fun downsampleChartData(data: List<Double>, targetSize: Int): List<Double> {
         if (data.isEmpty() || targetSize <= 0) return emptyList()
         val result = ArrayList<Double>(targetSize)
@@ -707,11 +706,11 @@ class PortfolioViewModel(
             _sparklineCache.value = emptyMap()
             _aiState.value = AiUiState.Idle
             _thematicState.value = AiUiState.Idle
-            _uiMessage.value = null // 🚀 ADDED
+            _uiMessage.value = null
             lastPortfolioSignature = ""
             prefs.edit(commit = true) { 
                 remove("last_ai_portfolio_sig")
-                remove("theme_mode") // 🚀 Optional: Reset theme on full wipe
+                remove("theme_mode") // Reset theme on wipe
                 remove("is_usd_selected")
             }
         }

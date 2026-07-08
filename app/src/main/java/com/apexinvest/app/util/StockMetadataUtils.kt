@@ -71,7 +71,7 @@ object StockMetadataUtils {
     fun getExchangeInfo(symbol: String): ExchangeInfo {
         val s = symbol.uppercase().trim()
         
-        // 🛠️ FIX: Explicit Index Mapping (Bypass suffix check for known indices)
+        // Explicit index mapping
         when {
             s == "^NSEI" || s == "NIFTY 50" || s == "NIFTY_50" -> 
                 return ExchangeInfo("NSE India Index", "INR", "NSE", "Asia/Kolkata", "09:15", "15:30")
@@ -137,8 +137,7 @@ object StockMetadataUtils {
     }
 
     /**
-     * 🚀 NEW: Check if the market is currently in extended hours (Pre/Post) or recently closed.
-     * This is used to keep polling for after-hours prices and final close prices.
+     * Check for extended hours or recent close.
      */
     fun isExtendedMarketActive(symbol: String, graceMinutes: Long = 15): Boolean {
         val info = getExchangeInfo(symbol)

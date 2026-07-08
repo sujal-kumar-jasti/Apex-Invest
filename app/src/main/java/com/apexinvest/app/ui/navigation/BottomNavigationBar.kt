@@ -41,7 +41,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-// 1. UPDATED DATA CLASS: Added an optional badgeCount for future notifications
+// Data class with badge count support
 sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: String, val badgeCount: Int = 0) {
     object Home : BottomNavItem("tab_home", Icons.Default.Home, "Home")
     object Portfolio : BottomNavItem("tab_holdings", Icons.Default.PieChart, "Holdings")
@@ -49,7 +49,7 @@ sealed class BottomNavItem(val route: String, val icon: ImageVector, val label: 
     object Predict : BottomNavItem("tab_predict", Icons.Default.Analytics, "Predict")
 }
 
-// 2. STATIC LIST & SHAPES: Lifted to prevent memory reallocation
+// Static list and shapes
 private val bottomNavItems = listOf(
     BottomNavItem.Home,
     BottomNavItem.Portfolio,
@@ -61,13 +61,13 @@ private val BottomBarShape = RoundedCornerShape(42.dp)
 @Composable
 fun ApexBottomBar(
     navController: NavController,
-    modifier: Modifier = Modifier // 🌟 Crucial for allowing the parent Box to align it to BottomCenter
+    modifier: Modifier = Modifier // For BottomCenter alignment
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
 
-    // CACHED VISIBILITY CHECK: Only shows the floating bar if we are on a primary tab screen
+    // Visibility check for primary tab screens
     val showBottomBar = remember(currentRoute) {
         currentRoute != null && bottomNavItems.any { it.route == currentRoute }
     }
@@ -75,22 +75,22 @@ fun ApexBottomBar(
     if (showBottomBar) {
         val isDark = isSystemInDarkTheme()
 
-        // MEMOIZED COLORS: Caching UI states to prevent allocation lag during animations
+        // Memoized colors for animations
         val purpleAccent = remember(isDark) { if (isDark) Color(0xFF9E86FF) else Color(0xFF673AB7) }
         val shadowSize = remember(isDark) { if (isDark) 24.dp else 16.dp }
         val bgColor = remember(isDark) { if (isDark) 0.85f else 0.95f }
         val borderColor = remember(isDark) { if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.1f) }
 
-        // CACHED HIERARCHY: O(1) lookup map for active states
+        // Cached hierarchy for active states
         val hierarchyRoutes = remember(currentDestination) {
             currentDestination?.hierarchy?.mapNotNull { it.route }?.toSet() ?: emptySet()
         }
 
-        // 3. THE CUSTOM FLOATING UI
+        // Custom floating UI
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 24.dp) // Creates the floating gap from the edges
+                .padding(horizontal = 24.dp, vertical = 24.dp) // Floating gap
                 .height(80.dp)
                 .shadow(shadowSize, BottomBarShape, spotColor = purpleAccent.copy(alpha = 0.3f))
                 .clip(BottomBarShape)
@@ -111,12 +111,12 @@ fun ApexBottomBar(
                             .weight(1f)
                             .fillMaxHeight()
                             .clickable(
-                                indication = null, // Removes the default square ripple for a cleaner look
+                                indication = null, // No default ripple
                                 interactionSource = remember { MutableInteractionSource() },
                                 onClick = {
                                     if (!isSelected) {
                                         navController.navigate(item.route) {
-                                            // The magic standard for bottom navigation routing
+                                            // Navigation standard
                                             popUpTo(navController.graph.findStartDestination().id) {
                                                 saveState = true
                                             }

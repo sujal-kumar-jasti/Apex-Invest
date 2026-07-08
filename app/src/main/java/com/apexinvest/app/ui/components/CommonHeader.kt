@@ -41,8 +41,7 @@ fun CommonScreenHeader(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
-    // OPTIMIZATION: Completely removed 'isDark' because you weren't actually using it in this component!
-    // This saves a completely useless, highly expensive luminance calculation.
+    // optimization: removed 'isDark' as it was unused
 
     Box(
         modifier = modifier
@@ -58,7 +57,7 @@ fun CommonScreenHeader(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(CircleShape) // Moved clip BEFORE background/clickable for premium ripples
+                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), CircleShape)
                         .clickable(onClick = onBackClick),
@@ -116,7 +115,7 @@ fun CommonScreenHeader(
 }
 
 
-// 1. EXTRACT BRUSH: Move the gradient outside the Composable so it is allocated in memory exactly once.
+// Extract brush to avoid reallocation
 private val ProfileAvatarGradient = Brush.linearGradient(
     colors = listOf(BrandPurple, Color(0xFF9575CD))
 )

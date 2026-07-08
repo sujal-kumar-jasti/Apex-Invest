@@ -25,7 +25,7 @@ fun guessCurrencyFromSymbol(rawSymbol: String): String {
     // 2. Use StockMetadataUtils to decode based on suffix
     val exchangeInfo = StockMetadataUtils.getExchangeInfo(clean)
     
-    // 🚀 FIX: Reliable detection via exchange metadata
+    // Reliable detection via exchange metadata
     if (clean.contains(".") || exchangeInfo.currency != "USD") {
         return exchangeInfo.currency
     }
@@ -71,7 +71,7 @@ fun getConvertedValue(
     rates: Map<String, Double>,
     sourceCurrencyOverride: String? = null
 ): Double {
-    // 🚀 FIX: Prioritize exchange metadata for the most accurate source currency
+    // Prioritize exchange metadata for source currency
     val sourceCurrency = sourceCurrencyOverride ?: run {
         val info = StockMetadataUtils.getExchangeInfo(symbol)
         if (info.currency != "USD" || symbol.contains(".")) {

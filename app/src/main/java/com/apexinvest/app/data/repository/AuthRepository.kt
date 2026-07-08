@@ -46,7 +46,7 @@ class AuthRepository(
                 val token = body.token!!
                 val realEmail = extractEmailFromToken(token)
 
-                // 🚀 PASS THE NEW FIELDS
+                // Save new fields
                 sessionManager.saveAuthToken(
                     token = token,
                     email = realEmail,
@@ -103,7 +103,7 @@ class AuthRepository(
 
     suspend fun verifyOtp(email: String, password: String, otp: String, name: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // 🚀 Pass the name into the API request
+            // Pass name into API request
             val response = apiService.verifyOtp(VerifyOtpRequest(email, password, otp, name))
             if (response.isSuccessful && response.body()?.token != null) {
                 val body = response.body()!!
@@ -131,7 +131,7 @@ class AuthRepository(
         try {
             val response = apiService.loginUser(AuthRequest(email, password))
             if (response.isSuccessful && response.body()?.token != null) {
-                val body = response.body()!! // 🚀 Defined body here so the references below work
+                val body = response.body()!!
 
                 sessionManager.saveAuthToken(
                     token = body.token!!,

@@ -112,7 +112,7 @@ fun TradeEntrySheet(
     val inputBgColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f)
     val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
-    // 🚀 IMPROVED SEARCH UX: Debounce logic to trigger immediately after typing stops
+    // Search debounce logic
     LaunchedEffect(searchQuery) {
         if (isBuy && searchQuery.length >= 2 && selectedSymbol.isEmpty()) {
             kotlinx.coroutines.delay(250.milliseconds) // Short debounce for responsiveness
@@ -138,7 +138,7 @@ fun TradeEntrySheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .imePadding() // 🛠️ FIX: Ensure keyboard doesn't overlap content
+            .imePadding() // Ensure keyboard doesn't overlap content
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp)

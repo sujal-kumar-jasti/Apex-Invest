@@ -167,7 +167,7 @@ fun WatchlistScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(watchlist, key = { it.symbol }) { stock ->
-                        // 🚀 OPTIMIZATION: Memoize stable properties and expensive conversions.
+                        // Memoize stable properties
                         val passCurrency = remember(stock.symbol) { guessCurrencyFromSymbol(stock.symbol) }
                         val convertedPrice = remember(stock.lastPrice, uiState.isUsd, uiState.rates) {
                             getConvertedValue(stock.lastPrice, stock.symbol, uiState.isUsd, uiState.rates)

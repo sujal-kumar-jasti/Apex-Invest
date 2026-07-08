@@ -69,12 +69,12 @@ fun CommonSearchOverlay(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    // Cache the brush so it isn't recreated on every keystroke
+    // Cache brush
     val meshBrush = remember(isDark) {
         Brush.verticalGradient(listOf(BrandPurple.copy(alpha = 0.15f), Color.Transparent))
     }
 
-    // Cache text field colors to avoid object allocation during typing
+    // Cache text field colors
     val searchColors = TextFieldDefaults.colors(
         focusedContainerColor = Color.Transparent,
         unfocusedContainerColor = Color.Transparent,
@@ -107,7 +107,7 @@ fun CommonSearchOverlay(
                     .background(meshBrush)
                     .statusBarsPadding()
             ) {
-                // --- Search Header ---
+                // Search Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -158,7 +158,7 @@ fun CommonSearchOverlay(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 
-                // --- Results Area ---
+                // Results Area
                 Box(Modifier.fillMaxSize()) {
                     content()
                 }
@@ -175,16 +175,16 @@ fun CommonSearchResultRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    // MEMOIZATION: Prevent string operations on scroll
+    // Memoize first char
     val firstChar = remember(symbol) { symbol.take(1) }
     val displayName = remember(name) { name ?: "Unknown Company" }
 
-    // Cache visual elements
+    // Cache colors
     val iconBgColor = remember { BrandPurple.copy(alpha = 0.15f) }
     val badgeBgColor = remember { BrandPurple.copy(alpha = 0.1f) }
     val badgeBorderColor = remember { BrandPurple.copy(alpha = 0.2f) }
 
-    // FLATTENED LAYOUT: Removed the outer Box and `glassCard`
+    // Flattened layout
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -195,7 +195,7 @@ fun CommonSearchResultRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // --- Left Icon ---
+        // Left Icon
         Box(
             modifier = Modifier
                 .size(42.dp)
@@ -212,7 +212,7 @@ fun CommonSearchResultRow(
 
         Spacer(Modifier.width(16.dp))
 
-        // --- Ticker & Company Name ---
+        // Ticker & Name
         Column(Modifier.weight(1f)) {
             Text(
                 text = symbol,
@@ -230,7 +230,7 @@ fun CommonSearchResultRow(
             )
         }
 
-        // --- Exchange Badge ---
+        // Exchange Badge
         if (!exchange.isNullOrEmpty()) {
             Surface(
                 color = badgeBgColor,

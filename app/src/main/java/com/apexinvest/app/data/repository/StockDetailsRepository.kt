@@ -63,7 +63,7 @@ class StockDetailsRepository(
     private val aiAnalysisCache = createSessionCache<String, SessionCache<String>>()
     private val newsCache = createSessionCache<String, SessionCache<List<StockNews>>>()
 
-    // 🚀 SESSION TRACKER: Keep track of symbols fetched in this session to force fresh load once
+    // Track symbols fetched in this session
     private val sessionFetchedSymbols = Collections.synchronizedSet(mutableSetOf<String>())
 
     // Dedicated Cache for Python Financial Charts and Info
@@ -82,7 +82,7 @@ class StockDetailsRepository(
         val symClean = symbol.uppercase().trim()
         val isIndian = isIndianMarket(symClean)
 
-        // 🚀 SESSION LOGIC: If this is the first time we see this symbol in this app session, force a fresh load
+        // Force fresh load on first session fetch
         val isFirstSessionFetch = sessionFetchedSymbols.add(symClean)
         val finalForceRefresh = forceRefresh || isFirstSessionFetch
 
@@ -95,7 +95,7 @@ class StockDetailsRepository(
         var newsData: List<StockNews> = newsCache[symClean]?.data ?: emptyList()
 
         if (liveQuote == null || fullMatrix == null || chartData == null) {
-            // 🚀 SYNC: Check Stock Cache (updated by Dashboard) for the most recent live price
+            // Check Stock Cache for most recent live price
             val recentCache = stockCacheDao.getStockCache(symClean)
             
             analysisCacheDao.getAnalysisCache("DETAIL_QUOTE_$symClean")?.let {
@@ -214,7 +214,7 @@ class StockDetailsRepository(
 
         coroutineScope {
             launch {
-                // 🚀 OPTIMIZATION: Skip Yahoo quote during regular market hours if we have other data sources
+                // Skip Yahoo quote if market is open and data exists
                 val (isOpen, _) = com.apexinvest.app.util.StockMetadataUtils.isMarketOpen(symClean)
                 if (!isOpen || liveQuote == null) {
                     fetchLiveQuote(symClean, finalForceRefresh).onSuccess {
@@ -277,13 +277,13 @@ class StockDetailsRepository(
 
     suspend fun fetchLiveQuote(symbol: String, forceRefresh: Boolean = false): Result<StockLiveQuoteDto> {
         val cached = liveQuoteCache[symbol]
-        // 🚀 OPTIMIZATION: Short 10s TTL for live quotes to make range switching feel snappier
+        // Short 10s TTL for live quotes
         val now = System.currentTimeMillis()
         if (!forceRefresh && cached?.isError == false && (now - cached.timestamp < 10_000L)) {
             cached.data?.let { return Result.success(it) }
         }
         return try {
-            // 🚀 OPTIMIZATION: Use lightweight v7/finance/quote for live price updates
+            // Use lightweight v7/finance/quote for live price updates
             val yahooResponse = yahooFinanceApiService.getQuotes(symbol)
             val res = YahooParser.parseV7Response(yahooResponse).firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }
                 ?: throw Exception("No quote found for $symbol")
@@ -313,7 +313,7 @@ class StockDetailsRepository(
         }
         return try {
             val (interval, fetchRange) = when(range) {
-                "1d" -> "1m" to "5d" // 🛠️ INCREASED TO 5D for safer gap coverage (Weekends/Holidays)
+                "1d" -> "1m" to "5d" // Increased to 5d for gap coverage
                 "5d" -> "5m" to "5d"
                 "1mo" -> "15m" to "1mo"
                 "3mo", "6mo" -> "1d" to range
@@ -327,8 +327,8 @@ class StockDetailsRepository(
             
             android.util.Log.d(TAG, "Fetched chart for $symbol range $range: ${fullCandles.size} candles")
             
-            // 🚀 REGULAR HOURS ONLY: Filter out pre/post market from the chart points
-            // 🛠️ FIX: Only filter regular hours for intra-day/short-term ranges. 
+            // Filter out pre/post market points
+            // Only filter regular hours for intra-day ranges
             // 5y and MAX use weekly/monthly candles which fall outside specific daily regular hours.
             val regularCandles = if (range in listOf("1d", "5d", "1mo", "3mo", "6mo")) {
                 YahooParser.filterRegularHours(symbol, fullCandles)

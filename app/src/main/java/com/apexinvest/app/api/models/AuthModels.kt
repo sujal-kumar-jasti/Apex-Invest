@@ -22,9 +22,9 @@ data class VerifyOtpRequest(
 data class AuthResponse(
     @SerializedName("token") val token: String? = null,
     @SerializedName("message") val message: String,
-    @SerializedName("email") val email: String? = null,           // 🚀 ADDED
-    @SerializedName("name") val name: String? = null,             // 🚀 ADDED
-    @SerializedName("profilePic") val profilePic: String? = null  // 🚀 ADDED
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("profilePic") val profilePic: String? = null
 )
 
 @Keep
@@ -68,7 +68,7 @@ data class WatchlistItem(
 
 @Keep
 data class TransactionItem(
-    @SerializedName("id") val id: String? = null, // 🚀 ADD THIS
+    @SerializedName("id") val id: String? = null,
     @SerializedName("symbol") val symbol: String,
     @SerializedName("type") val type: String, // "BUY" or "SELL"
     @SerializedName("quantity") val quantity: Double,

@@ -47,7 +47,7 @@ data class CommodityUiModel(
     val value: String,
     val isPositive: Boolean,
     val changePercent: String,
-    val currency: String = "USD" // 🆕 Store native currency for navigation
+    val currency: String = "USD" // Native currency for navigation
 )
 
 class ExploreViewModel(
@@ -102,7 +102,7 @@ class ExploreViewModel(
 
     fun loadMarketData() {
         val currentTime = System.currentTimeMillis()
-        // 🚀 PREVENTS TAB-SWITCH LAG: 10-second cooldown so it doesn't freeze the UI thread
+        // Prevent tab-switch lag with cooldown
         if (currentTime - lastFetchTime < 10_000) return
 
         viewModelScope.launch { fetchAndSaveMarketData() }
@@ -134,7 +134,7 @@ class ExploreViewModel(
     private fun processCommodities(list: List<CommodityDto>, rate: Double): List<CommodityUiModel> {
         return list.map { item ->
             val symbol = item.symbol
-            // 🛠️ FIX: Use the API's currency if available, fallback to robust guessing
+            // Use API currency if available, else fallback
             val nativeCurrency = item.currency ?: guessCurrencyFromSymbol(symbol)
             
             val price = item.price ?: 0.0
@@ -151,7 +151,7 @@ class ExploreViewModel(
     }
 
     private fun sanitizeTrending(list: List<TrendingStockDto>) = list.map {
-        // 🛠️ FIX: Use API currency if available
+        // Use API currency if available
         val nativeCurrency = it.currency ?: guessCurrencyFromSymbol(it.symbol)
         it.copy(currency = nativeCurrency)
     }

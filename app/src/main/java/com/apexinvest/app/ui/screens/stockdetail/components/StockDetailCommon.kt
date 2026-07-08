@@ -169,7 +169,7 @@ fun TradingViewGauge(
         Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
 
         Box(modifier = Modifier.fillMaxWidth().height(210.dp), contentAlignment = Alignment.Center) {
-            // 🚀 OPTIMIZATION: Use drawWithCache to cache label layouts and arc geometry.
+            // Cache layouts and arc geometry
             Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).drawWithCache {
                 val gaugeWidth = 24.dp.toPx()
                 val r = (size.width / 2) - 55.dp.toPx()

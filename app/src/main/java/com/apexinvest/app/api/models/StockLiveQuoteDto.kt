@@ -16,7 +16,7 @@ data class StockLiveQuoteDto(
     @SerializedName("yearHigh") val yearHigh: Double,
     @SerializedName("yearLow") val yearLow: Double,
 
-    // 🚀 Extended Hours Data
+    // Extended Hours Data
     @SerializedName("prePrice") val prePrice: Double? = null,
     @SerializedName("preChange") val preChange: Double? = null,
     @SerializedName("postPrice") val postPrice: Double? = null,
@@ -24,5 +24,5 @@ data class StockLiveQuoteDto(
     @SerializedName("marketState") val marketState: String? = null,
     @SerializedName("hasPrePost") val hasPrePost: Boolean = true,
 
-    @SerializedName("candlesJson") val candlesJson: String? = null // 🆕 Optional sparkline data
+    @SerializedName("candlesJson") val candlesJson: String? = null // Optional sparkline data
 )

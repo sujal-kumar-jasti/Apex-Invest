@@ -56,7 +56,7 @@ class PortfolioRepository(
     private val transactionDao: TransactionDao,
     private val stockCacheDao: StockCacheDao,
     private val analysisCacheDao: AnalysisCacheDao,
-    private val notificationDao: NotificationDao, // 🚀 ADDED
+    private val notificationDao: NotificationDao,
     private val sessionManager: SessionManager,
     private val authApiService: ApexAuthApiService,
     private val yahooFinanceApiService: YahooFinanceApiService,
@@ -366,8 +366,7 @@ class PortfolioRepository(
         }
 
         analysisCacheDao.clearAll()
-        // 🚀 CRITICAL FIX: Await initial price/chart fetch before returning
-        // This ensures the Dashboard has data to show immediately after the first trade.
+        // Ensure Dashboard has data after first trade
         fetchAndUpdatePrice(cleanSymbol)
     }
 
@@ -493,7 +492,7 @@ class PortfolioRepository(
                 if (shouldFetchHeavyChart) {
                     val fullCandles = YahooParser.parseToCandles(yahooResponse as com.apexinvest.app.api.models.yahoo.YahooChartResponse)
                     
-                    // 🚀 UNIFIED FILTERING: Filter regular hours BEFORE rolling window
+                    // Filter regular hours before rolling window
                     val regularCandles = YahooParser.filterRegularHours(s, fullCandles)
                     val candles = YahooParser.filterRollingWindow(s, regularCandles)
 
@@ -514,7 +513,7 @@ class PortfolioRepository(
 
                         existingCandles.add(CandlePointDto((now / 1000).toString(), quoteDto.price, quoteDto.price, quoteDto.price, quoteDto.price, 0))
                         
-                        // 🚀 REUSE ROLLING WINDOW: Consistency between full and partial updates
+                        // Ensure consistency between full and partial updates
                         val filtered = YahooParser.filterRollingWindow(s, existingCandles)
                         candlesJsonToSave = gson.toJson(filtered)
                         sparklineMemCache[s] = filtered.map { it.close }
@@ -839,7 +838,7 @@ class PortfolioRepository(
         transactionDao.clearAllTransactions()
         stockCacheDao.clearAll()
         analysisCacheDao.clearAll()
-        notificationDao.clearAllNotifications() // 🚀 ADDED
+        notificationDao.clearAllNotifications()
         sessionManager.clearSession()
         lastPriceSyncTime = 0L
         sparklineMemCache.clear()

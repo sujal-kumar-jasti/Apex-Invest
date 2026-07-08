@@ -100,7 +100,7 @@ object MarketCheck {
                         inboxStyle.addLine(lineBuilder)
                         linesAdded++
 
-                        // 🆕 Advanced Pro-Level Triggers
+                        // Advanced triggers
                         val gson = com.google.gson.Gson()
                         val cacheKey = "DEEP_${stock.symbol}"
                         val cachedAnalysis = analysisCacheDao?.getAnalysisCache(cacheKey)
@@ -202,7 +202,7 @@ object MarketCheck {
                     )
                 )
 
-                // 🆕 New: Portfolio Milestone check (dummy logic for demo)
+                // Portfolio Milestone check
                 if (avgChange > 2.0) {
                     notificationService?.sendMilestoneAlert("surged by over 2% today!")
                 } else if (avgChange < -2.0) {

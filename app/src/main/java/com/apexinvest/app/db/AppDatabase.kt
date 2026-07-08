@@ -22,7 +22,7 @@ import com.apexinvest.app.data.WatchlistEntity
         AnalysisCacheEntity::class,
         NotificationEntity::class,
     ],
-    version = 10, // 🆕 Bumped version for extended hours fields in StockEntity and StockCacheEntity
+    version = 10, // Incremented version for extended hours fields
     exportSchema = false
 )
 @TypeConverters(AppConverters::class)

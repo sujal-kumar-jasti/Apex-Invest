@@ -84,7 +84,7 @@ fun NotificationScreen(
         )
     }
 
-    // ARCHITECTURAL FIX: Replaced Scaffold with a pure Column
+    // Using Column instead of Scaffold
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -93,11 +93,11 @@ fun NotificationScreen(
         CenterAlignedTopAppBar(
             modifier = Modifier,
             title = { Text("Notifications", fontWeight = FontWeight.Bold) },
-            // Update navigationIcon to use the circular box layout
+            // Back button
             navigationIcon = {
                 Box(
                     modifier = Modifier
-                        .padding(start = 12.dp) // Subtle alignment tweak for the top app bar slot
+                        .padding(start = 12.dp) // Alignment tweak
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.3f else 0.5f))
@@ -143,7 +143,7 @@ fun NotificationScreen(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = BrandPurple
                     ),
-                    modifier = Modifier.padding(end = 12.dp) // Keeps proportions balanced with the leading icon
+                    modifier = Modifier.padding(end = 12.dp) // Balanced proportions
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -152,7 +152,7 @@ fun NotificationScreen(
             windowInsets = if (isConnected) TopAppBarDefaults.windowInsets else WindowInsets(0.dp)
         )
 
-        // Rest of the content flows directly under the TopAppBar
+        // Notification list
         if (notifications.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

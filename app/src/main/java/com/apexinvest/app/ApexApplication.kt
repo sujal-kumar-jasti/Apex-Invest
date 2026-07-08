@@ -15,7 +15,7 @@ class ApexApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
 
-        // 🚀 Pre-fetch Yahoo crumb/cookies in background
+        // Pre-fetch Yahoo credentials
         appScope.launch {
             com.apexinvest.app.api.util.YahooAuthManager.getCrumb()
         }

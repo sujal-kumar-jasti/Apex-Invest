@@ -93,11 +93,10 @@ fun AppTickerText(
 fun AppSparkline(data: List<Double>, color: Color, modifier: Modifier = Modifier) {
     if (data.isEmpty()) return
 
-    // 🚀 Robustness: If only one point, create a horizontal line
+    // Handle single point
     val plotData = if (data.size == 1) listOf(data[0], data[0]) else data
 
-    // 🚀 OPTIMIZATION: Use drawWithCache to cache the Path object.
-    // This prevents allocating a new Path on every single draw frame (e.g. during scroll).
+    // Cache Path object to prevent re-allocation
     Spacer(
         modifier = modifier.drawWithCache {
             val path = Path()

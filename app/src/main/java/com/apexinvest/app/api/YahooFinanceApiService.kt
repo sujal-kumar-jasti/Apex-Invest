@@ -18,8 +18,7 @@ interface YahooFinanceApiService {
     ): YahooChartResponse
 
     /**
-     * 🚀 Optimized lightweight endpoint for fetching live quotes.
-     * Supports multiple symbols separated by commas.
+     * Fetch live quotes for multiple symbols.
      */
     @GET("v7/finance/quote")
     suspend fun getQuotes(
@@ -28,8 +27,7 @@ interface YahooFinanceApiService {
     ): YahooQuoteResponse
 
     /**
-     * 🆕 Lightweight endpoint for fetching ONLY the current quote.
-     * Uses 1-day range and 1-minute interval to capture the latest tick.
+     * Fetch current quote only.
      */
     @Deprecated("Use getQuotes(symbol) for more efficient price updates")
     @GET("v8/finance/chart/{symbol}")

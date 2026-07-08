@@ -47,25 +47,25 @@ fun CommonStockRow(
 ) {
     val appColors = LocalAppColors.current
 
-    // 1. MEMOIZE CALCULATIONS: Prevent recalculating strings/colors on every scroll frame
+    // Memoize calculations
     val isUp = remember(percentChange) { percentChange >= 0 }
     val trendColor = remember(isUp, appColors) { if (isUp) appColors.trendGreen else appColors.trendRed }
     val trendBg = remember(trendColor) { trendColor.copy(alpha = 0.15f) }
     val currencySymbol = remember(isUsd) { getCurrencySymbol(if (isUsd) "USD" else "INR") }
     val quantityText = remember(quantity) { quantity?.let { " • ${it.toCleanString()} Qty" } }
 
-    // 2. FLATTEN LAYOUT: Removed the outer Box. The Row can handle the background and clicks.
+    // Row layout with background and clicks
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // IMPORTANT: If 'glassCard' causes lag, replace it with a solid surface/shadow for lists.
+            // If 'glassCard' causes lag, replace it with a solid surface/shadow
             .glassCard(isDark, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp)) // Clips the ripple effect cleanly to the borders
             .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // --- Left Section: Ticker & Name ---
+        // Left Section: Ticker & Name
         Column(
             modifier = Modifier
                 .weight(1.3f)
@@ -101,7 +101,7 @@ fun CommonStockRow(
             )
         }
 
-        // --- Middle Section: Sparkline ---
+        // Middle Section: Sparkline
         if (historyData.isNotEmpty()) {
             Box(
                 modifier = Modifier
@@ -116,11 +116,11 @@ fun CommonStockRow(
                 )
             }
         } else {
-            // Empty spacer to maintain layout balance if there's no chart data
+            // Maintain layout balance if chart data is missing
             Spacer(modifier = Modifier.weight(0.9f))
         }
 
-        // --- Right Section: Price & Change ---
+        // Right Section: Price & Change
         Column(
             horizontalAlignment = Alignment.End,
             modifier = Modifier.wrapContentWidth()
@@ -149,7 +149,7 @@ fun CommonStockRow(
             }
         }
 
-        // --- Action Section: Delete ---
+        // Action Section: Delete
         if (onDelete != null) {
             IconButton(
                 onClick = onDelete,
@@ -159,7 +159,7 @@ fun CommonStockRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete $symbol", // Added for accessibility
+                    contentDescription = "Delete $symbol",
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                     modifier = Modifier.size(20.dp)
                 )
